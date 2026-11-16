@@ -10,8 +10,9 @@
 
 const DEBUG = false;
 
-// Game title, shown on the start/continue screen (the page <title> in
-// index.html is set by hand to match)
+// Game title, shown on the start/continue screen. The page title is set
+// from these two when the game starts (init in game.js). Change the name
+// here; the app's name on Android is set in the Capacitor project.
 const GAME_TITLE = "Tank Rush";
 const GAME_SUBTITLE = "Base Defense";
 
@@ -19,14 +20,14 @@ const GAME_SUBTITLE = "Base Defense";
 // show; {level} and {left} are filled in by the game.
 const UI_TEXT = {
   gameOver: {
-    retry: "RETRY LEVEL {level}",                 // rewarded-ad button, {level} = the level just lost
-    retrySub: "Watch an ad, keep your upgrades",  // its smaller second line
+    retry: "CONTINUE",                                   // continue button (ads.js decides if an ad plays)
+    retrySub: "Retry level {level}, keep your upgrades", // its smaller second line, {level} = the level just lost
     startOver: "START OVER",
     startOverSub: "Back to Level 1",
-    retriesLeft: "{left} RETRIES LEFT",  // between the buttons, only with a limit and more than one left
-    loadingAd: "LOADING AD...",          // between the buttons while the ad loads or plays
-    noReward: "NO REWARD THIS TIME",     // the ad was skipped
-    adNotAvailable: "AD NOT AVAILABLE",  // no ad, an error, or no answer
+    retriesLeft: "{left} CONTINUES LEFT",  // between the buttons, only with a limit and more than one left
+    loadingAd: "LOADING...",               // between the buttons while ads.js hasn't answered
+    noReward: "NO CONTINUE THIS TIME",     // ads.js answered false (an ad was skipped)
+    adNotAvailable: "NOT AVAILABLE NOW",   // ads.js failed or didn't answer
   },
 };
 
@@ -336,33 +337,27 @@ const AMBIENT = {
 };
 
 // =====================================================================
-//  Saving (save.js): YouTube's storage inside Playables, localStorage
-//  when running locally
+//  Saving (save.js): one JSON string in localStorage
 // =====================================================================
 
 const SAVE = {
-  key: "tanks-save",  // localStorage key (only outside Playables)
-  loadTimeout: 3,     // seconds (not counting YouTube pauses) to wait for the save at start-up, then
-                      // start fresh; nothing is saved until it has loaded, a late one is merged in
-  maxBytes: 500 * 1024, // a save bigger than this isn't written (YouTube: must be under 3 MiB, should be under 500 KiB)
+  key: "tankrush_save_v1", // localStorage key (the save's own "version" field is inside the data)
+  maxBytes: 500 * 1024,    // a save bigger than this isn't written
 };
 
 // =====================================================================
-//  Rewarded ad on the game over screen (game.js): "Continue from level
-//  X" plays a YouTube rewarded ad, then the lost level starts again from
-//  its checkpoint (how the run stood when the level started)
+//  Continue on the game over screen (game.js): "Continue" asks ads.js
+//  for a rewarded ad (showRewardedAd; for now it gives the reward with
+//  no ad), then the lost level starts again from its checkpoint (how
+//  the run stood when the level started)
 // =====================================================================
 
-const REWARD_ID_CONTINUE = "continue-from-level"; // the reward's id sent to YouTube (no user data)
 // Continues per run ("Start over" starts a new run): a number, or null
 // (or Infinity) for no limit. They are counted and saved either way.
 const REWARDED_CONTINUES_PER_RUN = null;
 const START_LIVES_AFTER_CONTINUE = 3;  // lives after a continue
 const AD_MESSAGE_TIME = 2;   // seconds UI_TEXT.gameOver.noReward / adNotAvailable shows
 const AD_WAIT_LIMIT = 90;    // seconds without an answer before giving up (paused time doesn't count)
-// DEBUG outside Playables: the ad is simulated. result: "reward",
-// "noReward" (the player skipped it) or "error" (no ad)
-const DEBUG_AD = { delay: 1, result: "reward" };
 
 // =====================================================================
 //  Sound effects (audio.js): made in code, and for a few effects played

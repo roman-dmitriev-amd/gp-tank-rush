@@ -2,10 +2,10 @@
 //  Pause menu and settings.
 //
 //  This file has:
-//    - "settings": sound effects, engine sound, control side and
-//      control type (no overall sound switch: YouTube's mute is that)
-//    - who paused the game (the player, YouTube, or a rewarded ad on
-//      the game over screen)
+//    - "settings": sound (the overall switch), sound effects, engine
+//      sound, control side and control type
+//    - who paused the game (the player, the app being hidden, or a
+//      rewarded ad on the game over screen)
 //    - the pause button (top-right, next to the score)
 //    - the pause menu: Resume / Restart level / Settings, and the
 //      settings page
@@ -17,7 +17,8 @@
 // Settings (saved by save.js whenever one changes)
 // ---------------------------------------------------------------------
 const settings = {
-  soundEffects: true,     // sound effects on/off (YouTube's mute silences everything anyway)
+  sound: true,            // all sound on/off (the overall switch)
+  soundEffects: true,     // sound effects on/off
   engineSound: true,      // the player tank's engine sound on/off
   leftHanded: false,      // false: movement left, FIRE right. true: swapped
   controlType: "drag",    // "drag" (floating joystick) or "cross" (D-pad)
@@ -26,11 +27,11 @@ const settings = {
 // ---------------------------------------------------------------------
 // Who paused the game
 //   pauseMenu.open  the player pressed pause (menu on screen)
-//   systemPaused    YouTube paused us (ytgame.system.onPause) until it
-//                   resumes us (onResume). Nothing else pauses the game:
-//                   no page visibility, focus or blur events.
+//   systemPaused    the app is hidden (in the background, screen off,
+//                   another tab): the "visibilitychange" event in
+//                   game.js, until it shows again
 //   gameOverScreen.waitingForAd  a rewarded ad is loading or playing
-//                   (game.js); ends when YouTube answers
+//                   (game.js); ends when ads.js answers
 // ---------------------------------------------------------------------
 const pauseMenu = {
   open: false,
@@ -54,10 +55,11 @@ function canOpenPauseMenu() {
          gameState === GAME_STATE.WORLD_INTRO;
 }
 
-function openPauseMenu() {
+// "silent": without the tap sound (the app is being hidden, game.js)
+function openPauseMenu(silent) {
   if (!canOpenPauseMenu() || pauseMenu.open) return;
   pauseMenu.open = true;
-  Sound.play("uiTap");
+  if (silent !== true) Sound.play("uiTap");
   showPausePage("main");
   releaseAllInput(); // a held arrow key or finger must not keep driving
 }
@@ -73,11 +75,11 @@ function showPausePage(page) {
   resetOverlayScroll();
 }
 
-// YouTube paused (onPause) or resumed (onResume) us. While paused
+// The app was hidden (true) or shows again (false). While hidden
 // EVERYTHING stops: the game loop (nothing is updated or drawn), input,
-// sound, the engine and the sound files' downloads. Answers from YouTube
-// (the save, an ad) wait for the game loop, so they're handled after the
-// resume, and so is a size change (resize in game.js).
+// sound, the engine and the sound files' loading. A rewarded ad's answer
+// waits for the game loop, so it's handled once the app shows again,
+// and so is a size change (resize in game.js).
 function setSystemPause(on) {
   if (on === systemPaused) return;
   systemPaused = on;
@@ -213,6 +215,14 @@ function pauseMenuItems() {
   if (pauseMenu.page === "settings") {
     return [
       {
+        label: "SOUND: " + (settings.sound ? "ON" : "OFF"),
+        action: () => {
+          settings.sound = !settings.sound;
+          Sound.refreshMute(); // audio.js: everything quiet, or back on
+          writeSave();
+        },
+      },
+      {
         label: "SOUND EFFECTS: " + (settings.soundEffects ? "ON" : "OFF"),
         action: () => {
           settings.soundEffects = !settings.soundEffects;
@@ -330,8 +340,9 @@ function pauseColumns() {
   });
 }
 
-// Landscape, settings page: the settings in two columns (sound on the
-// left, controls on the right, wider: its labels are longer), in the
+// Landscape, settings page: the settings in two columns (the three
+// sound settings on the left, controls on the right, wider: its labels
+// are longer), in the
 // order Up/Down goes through them, and BACK centered under both
 function settingsColumns() {
   const items = pauseMenuItems();
@@ -380,7 +391,7 @@ function pauseMenuTap(x, y) {
 }
 
 // Escape: back / resume. Up/Down choose, Enter or Space press. Escape is
-// never preventDefault-ed (YouTube needs it), the others are, so they
+// never preventDefault-ed, the others are, so they
 // don't scroll the page.
 function pauseMenuKeyDown(event) {
   const code = event.code;

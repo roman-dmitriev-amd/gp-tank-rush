@@ -15,15 +15,14 @@
 //  and the sound files are fetched and decoded in the background then.
 //
 //  Sound is OFF (muted) when either:
-//    - YouTube says audio is disabled (ytgame.system.isAudioEnabled()
-//      and onAudioEnabledChange): YouTube's mute is the only overall
-//      sound switch, and nothing in the game can turn sound back on, or
+//    - the SOUND setting is off (settings.sound, the overall switch;
+//      pause.js calls Sound.refreshMute() when it changes), or
 //    - a rewarded ad is loading or playing (Sound.setAdPlaying, game.js).
-//  Running locally (no YouTube SDK) counts as enabled. On top of that,
-//  the pause menu has two separate switches: sound effects
-//  (settings.soundEffects) and the engine (settings.engineSound).
-//  While YouTube has the game paused the AudioContext is suspended and
-//  the sound files stop downloading (setSystemPaused).
+//  On top of that, the settings have two separate switches: sound
+//  effects (settings.soundEffects) and the engine (settings.engineSound).
+//  While the app is hidden (in the background, screen off) the
+//  AudioContext is suspended and the sound files stop loading
+//  (setSystemPaused, called by setSystemPause in pause.js).
 //
 //  Where the sound goes (made in code or from a file, the same way):
 //    each effect -> its volume -> effects volume -> softener (low-pass) -+
@@ -40,9 +39,8 @@ const Sound = (() => {
   let engine = null;       // the engine's nodes, made the first time it runs
   const active = [];       // sounds playing now: { end (AudioContext time), out }
   const lastStart = {};    // sound name -> when it last started (AudioContext time)
-  let systemPaused = false; // YouTube paused the game (onPause, until onResume)
+  let systemPaused = false; // the app is hidden (setSystemPaused)
   let readyLogged = false;
-  let ytAudioEnabled = true; // what YouTube says (true when not on YouTube)
   let adPlaying = false;   // a rewarded ad is loading or playing: silent
   const fileState = {};    // file -> "loading" or "done" (loaded, or failed for good)
   let fileAbort = null;    // stops the downloads running now (on a pause)
@@ -51,49 +49,14 @@ const Sound = (() => {
   const lastFile = {};     // effect name -> the file it played last
   let engineLoop = null;   // the decoded engine loop file, once loaded
 
-  // ---------------------------------------------------------------
-  // YouTube Playables SDK: is audio allowed?
-  // Only the real YouTube player can turn sound off. If the SDK is
-  // missing, or we're not inside YouTube (IN_PLAYABLES_ENV false, e.g.
-  // the SDK script loaded but the page is opened locally), keep sound on.
-  // ---------------------------------------------------------------
-  function ytSystem() {
-    try {
-      if (typeof window.ytgame === "undefined" || !window.ytgame) return null;
-      if (window.ytgame.IN_PLAYABLES_ENV === false) return null;
-      return window.ytgame.system || null;
-    } catch (e) {
-      return null;
-    }
-  }
-
-  function readYouTubeAudio() {
-    const system = ytSystem();
-    try {
-      if (system && typeof system.isAudioEnabled === "function") {
-        ytAudioEnabled = system.isAudioEnabled() !== false;
-      }
-    } catch (e) {
-      console.warn(e);
-    }
-  }
-
-  function listenToYouTubeAudio() {
-    const system = ytSystem();
-    try {
-      if (system && typeof system.onAudioEnabledChange === "function") {
-        system.onAudioEnabledChange((enabled) => {
-          ytAudioEnabled = enabled !== false;
-          refreshMute();
-        });
-      }
-    } catch (e) {
-      console.warn(e);
-    }
+  // Is sound allowed at all? The SOUND setting (pause menu, settings in
+  // pause.js) is the overall switch.
+  function soundSettingOn() {
+    return typeof settings === "undefined" || settings.sound !== false;
   }
 
   function isEnabled() {
-    return ytAudioEnabled && !adPlaying;
+    return soundSettingOn() && !adPlaying;
   }
 
   function effectsSettingOn() {
@@ -137,7 +100,7 @@ const Sound = (() => {
   // browser suspended it, e.g. after the phone was locked)
   // ---------------------------------------------------------------
   function unlock() {
-    if (systemPaused) return; // YouTube paused us: wait for the resume
+    if (systemPaused) return; // the app is hidden: wait until it shows again
     try {
       if (!audioCtx) {
         const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -159,7 +122,7 @@ const Sound = (() => {
         }
       }
     } catch (e) {
-      console.warn("Audio could not start:", e);
+      if (DEBUG) console.warn("Audio could not start:", e);
     }
   }
 
@@ -214,7 +177,7 @@ const Sound = (() => {
   // Sound files (SOUND_FILES in config.js): all fetched and decoded at
   // once, in the background, when audio starts. An effect plays one of
   // its files as soon as one has loaded, and the sound made in code
-  // until then (or for good if its files fail to load). A YouTube pause
+  // until then (or for good if its files fail to load). A system pause
   // stops the downloads (no network calls while paused); the resume
   // starts the ones that hadn't finished again.
   // ---------------------------------------------------------------
@@ -249,7 +212,7 @@ const Sound = (() => {
     }
   }
 
-  // Stop the downloads running now (YouTube paused the game)
+  // Stop the downloads running now (the app was hidden)
   function stopFileLoads() {
     if (fileAbort) fileAbort.abort();
     fileAbort = null;
@@ -277,7 +240,7 @@ const Sound = (() => {
       .then(decode)
       .catch((error) => {
         if (controller && controller.signal.aborted) return "stopped";
-        if (!optional) console.warn("Sound file not loaded:", file, error);
+        if (DEBUG && !optional) console.warn("Sound file not loaded:", file, error);
         else if (DEBUG) console.log("[Sound] no " + file + ", using the engine made in code");
         return null;
       });
@@ -722,12 +685,12 @@ const Sound = (() => {
         }
       }
     } catch (e) {
-      console.warn(e);
+      if (DEBUG) console.warn(e);
     }
   }
 
   // Forget the sounds that have ended (by AudioContext time, which stops
-  // while YouTube has the game paused; no timers)
+  // while the app is hidden; no timers)
   function forgetEnded() {
     const now = audioCtx.currentTime;
     for (let i = active.length - 1; i >= 0; i--) {
@@ -739,7 +702,7 @@ const Sound = (() => {
   }
 
   // ---------------------------------------------------------------
-  // Play a sound by name. Does nothing if sound is off (YouTube's mute,
+  // Play a sound by name. Does nothing if sound is off (the SOUND setting,
   // an ad, or the SOUND EFFECTS setting), audio hasn't started yet,
   // AUDIO.maxSounds are already playing, or the same sound started less
   // than AUDIO.repeatGap seconds ago.
@@ -752,7 +715,7 @@ const Sound = (() => {
     if (active.length >= AUDIO.maxSounds) return;
     const build = SOUNDS[name];
     if (!build) {
-      console.warn("Unknown sound:", name);
+      if (DEBUG) console.warn("Unknown sound:", name);
       return;
     }
     // The same sound twice at (almost) the same moment, e.g. one bullet
@@ -782,11 +745,11 @@ const Sound = (() => {
 
       active.push({ end: start + length + 0.05, out });
     } catch (e) {
-      console.warn(e);
+      if (DEBUG) console.warn(e);
     }
   }
 
-  // YouTube paused / resumed the game: stop / restart audio and the
+  // The app was hidden / shows again: stop / restart audio and the
   // sound files' downloads. The engine goes silent right away and comes
   // back only when game.js says the player is driving again.
   function setSystemPaused(paused) {
@@ -810,12 +773,12 @@ const Sound = (() => {
 
   // DEBUG (temporary): a loud beep straight to the speakers, past the
   // game's settings and the sound limit - to check the browser can make
-  // sound. Never while YouTube's audio is off (or an ad plays).
+  // sound. Never while the SOUND setting is off (or an ad plays).
   function testBeep() {
     if (!audioCtx) return;
     console.log("Test beep. AudioContext state:", audioCtx.state,
                 "| sound effects setting:", effectsSettingOn(),
-                "| YouTube audio:", ytAudioEnabled);
+                "| sound setting:", soundSettingOn());
     if (!isEnabled()) return;
     const t = audioCtx.currentTime;
     const osc = audioCtx.createOscillator();
@@ -846,9 +809,6 @@ const Sound = (() => {
   document.addEventListener("keydown", (event) => {
     if (DEBUG && event.code === "KeyT" && !event.repeat) testBeep();
   });
-
-  readYouTubeAudio();
-  listenToYouTubeAudio();
 
   return { play, setEngine, refreshMute, setSystemPaused, setAdPlaying, isEnabled };
 })();

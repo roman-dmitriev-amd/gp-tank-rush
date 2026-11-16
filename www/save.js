@@ -2,36 +2,28 @@
 //  Saving - settings, records and the run in progress.
 //
 //  This file has:
-//    - "Save": stores ONE small JSON string. Inside YouTube Playables
-//      (ytgame.IN_PLAYABLES_ENV) it uses ONLY ytgame.game.saveData /
-//      loadData; localStorage only when the game runs outside Playables
-//      (locally). No other storage (sessionStorage, cookies, IndexedDB).
-//    - loading at start-up: YouTube rejects saveData until loadData has
-//      succeeded, so nothing is saved before that (saves wait), and the
-//      game loop takes loadData's answer (updateSaveLoading), so it waits
-//      while YouTube has the game paused
+//    - "Save": stores ONE small JSON string in localStorage under one
+//      key (SAVE.key in config.js), everything in try/catch: storage
+//      that is missing, full or broken never stops the game. No other
+//      storage (sessionStorage, cookies, IndexedDB).
 //    - "progress": best score, highest level and the run in progress,
 //      and writeSave() which saves everything at once
-//    - submitScore(): scores go to YouTube only once the save has loaded,
-//      so the best score YouTube shows matches the saved one
+//    - loadSaveAtStartup(): reads the save once when the game starts
 //    - the "Continue from level X / New game" screen shown at start-up
 //      when a run was saved
 //
 //  Saves only happen on events (shop opened, level done, game over,
-//  setting changed, YouTube pause), never every frame.
+//  setting changed, the app hidden), never every frame.
 //
 //  Saved data (SAVE_VERSION 1):
-//    { version, settings: { soundEffects, engineSound, leftHanded, controlType },
+//    { version, settings: { sound, soundEffects, engineSound, leftHanded, controlType },
 //      bestScore, highestLevel, tutorialDone, campaignComplete,
 //      checkpoint: null or { level, gold, score, upgrades, seed },
 //      run: null or { level, gold, lives, score, upgrades, continuesUsed } }
 //  Saves from every version load: each field is checked on its own
 //  (applySaveData), and one that is missing or wrong keeps its default.
-//  Added later without a version change: campaignComplete,
-//  settings.engineSound, checkpoint and run.continuesUsed (missing:
-//  false, on, none, 0), and
-//  settings.soundEffects, which replaced the overall settings.sound (an
-//  older save's sound off turns the effects and the engine off).
+//  settings.sound is the overall sound switch; soundEffects and
+//  engineSound each turn off only their part.
 //  run.level is the level the shop leads to (1-based). checkpoint is
 //  how the run stood when the current level started (seed only for
 //  generated levels), for the retries on the game over screen
@@ -42,49 +34,29 @@
 const SAVE_VERSION = 1;
 
 const Save = {
-  // Use YouTube's storage only inside Playables (the SDK also loads
-  // when the page is opened locally, but saving there doesn't work)
-  useSdk() {
-    return typeof ytgame !== "undefined" && ytgame.IN_PLAYABLES_ENV === true;
-  },
-
   // Store the data object as one JSON string (at most SAVE.maxBytes).
-  // Errors are only logged.
+  // Errors are only logged (with DEBUG).
   save(data) {
-    let text;
     try {
-      text = JSON.stringify(data);
+      const text = JSON.stringify(data);
+      if (text.length * 2 > SAVE.maxBytes) { // a JavaScript string: 2 bytes per character
+        if (DEBUG) console.warn("Save: too big (" + text.length + " characters), not saved");
+        return;
+      }
+      localStorage.setItem(SAVE.key, text);
     } catch (e) {
-      console.warn("Save: could not convert the data", e);
-      return;
-    }
-    if (text.length * 2 > SAVE.maxBytes) { // a JavaScript string: 2 bytes per character
-      console.warn("Save: too big (" + text.length + " characters), not saved");
-      return;
-    }
-    if (this.useSdk()) {
-      try {
-        ytgame.game.saveData(text).catch((e) => console.warn("Save failed", e));
-      } catch (e) {
-        console.warn("Save failed", e);
-      }
-    } else {
-      try {
-        localStorage.setItem(SAVE.key, text);
-      } catch (e) {
-        console.warn("Save failed", e);
-      }
+      if (DEBUG) console.warn("Save failed", e);
     }
   },
 
-  // Resolves to the saved JSON string ("" or null when nothing is
-  // saved yet); rejects when it couldn't be read
+  // The saved JSON string, or null when nothing is saved yet or it
+  // couldn't be read
   load() {
     try {
-      if (this.useSdk()) return Promise.resolve(ytgame.game.loadData());
-      return Promise.resolve(localStorage.getItem(SAVE.key));
+      return localStorage.getItem(SAVE.key);
     } catch (e) {
-      return Promise.reject(e);
+      if (DEBUG) console.warn("Load failed", e);
+      return null;
     }
   },
 };
@@ -98,7 +70,7 @@ function parseSave(text) {
     const data = JSON.parse(text);
     if (data && typeof data === "object" && Number.isInteger(data.version) && data.version >= 1) return data;
   } catch (e) {
-    console.warn("Save data is broken, starting fresh");
+    if (DEBUG) console.warn("Save data is broken, starting fresh");
   }
   return null;
 }
@@ -108,9 +80,6 @@ function parseSave(text) {
 // (tutorial.js)
 // ---------------------------------------------------------------------
 const progress = {
-  loaded: false,     // loadData succeeded: saving and sending scores are
-                     // allowed (before that YouTube rejects saves, and a
-                     // save could replace the stored one)
   bestScore: 0,
   highestLevel: 0,   // highest level number played
   campaignComplete: false, // hand-made level 20 was ever completed
@@ -123,6 +92,7 @@ function buildSaveData() {
   return {
     version: SAVE_VERSION,
     settings: {
+      sound: settings.sound,
       soundEffects: settings.soundEffects,
       engineSound: settings.engineSound,
       leftHanded: settings.leftHanded,
@@ -138,32 +108,10 @@ function buildSaveData() {
 }
 
 // Save everything now. In the shop the run is taken again, so what the
-// player just bought is kept too. Before the save has loaded nothing is
-// written: the save waits ("saveWanted") and is written once loading
-// worked; after a failed load, this tries loading again (not while
-// YouTube has the game paused: no network calls then).
-let saveWanted = false;
-
+// player just bought is kept too.
 function writeSave() {
   if (gameState === GAME_STATE.SHOP) rememberRun();
-  if (!progress.loaded) {
-    saveWanted = true;
-    if (saveLoading.failed && !isSystemPaused()) startLoadingSave();
-    return;
-  }
-  saveWanted = false;
   Save.save(buildSaveData());
-}
-
-// Send the run's score to YouTube (game.js calls this right after
-// updateRecords and writeSave). YouTube shows the best score ever sent,
-// which must match the saved best score, so before the save has loaded
-// the score waits (the highest one) and goes out once it has.
-let scoreWaiting = null;
-
-function submitScore(value) {
-  if (progress.loaded) sdk.sendScore(value);
-  else scoreWaiting = Math.max(scoreWaiting ?? 0, value);
 }
 
 // The run as it is in the shop: the next level, gold, lives, score,
@@ -239,23 +187,18 @@ function savedInt(value, min, max) {
 // wrong or missing keeps its default.
 function applySaveData(data) {
   const s = data.settings || {};
-  if (typeof s.soundEffects === "boolean") {
-    settings.soundEffects = s.soundEffects;
-  } else if (s.sound === false) {
-    // An older save with the old overall SOUND setting off: keep it quiet
-    settings.soundEffects = false;
-    settings.engineSound = false;
-  }
-  if (typeof s.engineSound === "boolean" && s.sound !== false) settings.engineSound = s.engineSound; // missing in older saves: stays on
+  if (typeof s.sound === "boolean") settings.sound = s.sound;
+  if (typeof s.soundEffects === "boolean") settings.soundEffects = s.soundEffects;
+  if (typeof s.engineSound === "boolean") settings.engineSound = s.engineSound;
   if (typeof s.leftHanded === "boolean") settings.leftHanded = s.leftHanded;
   if (s.controlType === "drag" || s.controlType === "cross") settings.controlType = s.controlType;
 
   progress.bestScore = savedInt(data.bestScore, 0, Number.MAX_SAFE_INTEGER) || 0;
   progress.highestLevel = savedInt(data.highestLevel, 0, 1e6) || 0;
   if (data.tutorialDone === true) tutorial.done = true;
-  progress.campaignComplete = data.campaignComplete === true; // missing in older saves
+  progress.campaignComplete = data.campaignComplete === true;
   progress.run = readSavedRun(data.run);
-  // The checkpoint (missing in older saves) is only kept with the saved
+  // The checkpoint is only kept with the saved
   // run whose level it belongs to. Otherwise the one taken when level 1
   // was set up at start-up stays; a level always takes a new one anyway.
   const checkpoint = readSavedCheckpoint(data.checkpoint);
@@ -288,7 +231,7 @@ function readSavedRun(run) {
     lives: savedInt(run.lives, 1, 99),
     score: savedInt(run.score, 0, Number.MAX_SAFE_INTEGER),
     upgrades: readSavedUpgrades(run.upgrades),
-    continuesUsed: savedInt(run.continuesUsed, 0, 1e6) || 0, // missing in older saves
+    continuesUsed: savedInt(run.continuesUsed, 0, 1e6) || 0,
   };
   if ([result.level, result.gold, result.lives, result.score, result.upgrades].includes(null)) return null;
   // Without endless mode there is nothing after the last level
@@ -314,106 +257,29 @@ function readSavedCheckpoint(checkpoint) {
 }
 
 // ---------------------------------------------------------------------
-// Loading. startLoadingSave() asks for the save; its answer is only
-// stored, and the game loop takes it (updateSaveLoading), so nothing
-// happens while YouTube has the game paused. The start-up waits on the
-// loading screen until the answer is there, or SAVE.loadTimeout seconds
-// of unpaused time have passed: then the game starts fresh, and a save
-// that comes later is merged in (mergeLateSave). A failed load is tried
-// again at the next save (writeSave).
+// Loading: once, when the game starts (init in game.js). A missing or
+// broken save, or one that can't be used, starts the game fresh.
 // ---------------------------------------------------------------------
-const saveLoading = {
-  busy: false,    // loadData was asked and hasn't answered yet
-  answer: null,   // its answer, not taken yet: { ok, text }
-  failed: false,  // the last load failed (try again at the next save)
-  waited: 0,      // seconds the start-up has waited
-};
-
-function startLoadingSave() {
-  if (saveLoading.busy || progress.loaded) return;
-  saveLoading.busy = true;
-  saveLoading.failed = false;
-  Save.load().then(
-    (text) => { saveLoading.answer = { ok: true, text }; },
-    (e) => {
-      console.warn("Load failed", e);
-      saveLoading.answer = { ok: false };
-    }
-  );
-}
-
-// Every frame (game loop): take the load's answer, and end the start-up
-// once it's there or waited long enough
-function updateSaveLoading(deltaSeconds) {
-  const answer = saveLoading.answer;
-  if (answer) {
-    saveLoading.answer = null;
-    saveLoading.busy = false;
-    if (answer.ok) useLoadedSave(answer.text);
-    else saveLoading.failed = true;
-  }
-  if (gameState === GAME_STATE.LOADING) {
-    saveLoading.waited += deltaSeconds;
-    if (!saveLoading.busy || saveLoading.waited >= SAVE.loadTimeout) finishStartup();
-  }
-}
-
-// loadData succeeded: put the save into the game (at start-up), or merge
-// it (it came after the game had started fresh). Then saving is allowed:
-// a save that waited is written, a score that waited is sent.
-function useLoadedSave(text) {
-  const data = parseSave(text);
+function loadSaveAtStartup() {
+  const data = parseSave(Save.load());
   if (DEBUG) console.log("[Save] loaded:", data ? JSON.stringify(data) : "nothing");
   try {
-    if (gameState === GAME_STATE.LOADING) {
-      if (data) applySaveData(data);
-    } else if (data) {
-      mergeLateSave(data);
-    }
+    if (data) applySaveData(data);
   } catch (e) {
-    console.warn("Save data could not be used, starting fresh", e);
+    if (DEBUG) console.warn("Save data could not be used, starting fresh", e);
     progress.run = null;
   }
-  progress.loaded = true;
-  if (saveWanted) writeSave();
-  if (scoreWaiting !== null) {
-    sdk.sendScore(scoreWaiting); // game.js
-    scoreWaiting = null;
-  }
+  Sound.refreshMute(); // the SOUND setting (audio.js)
+  finishStartup();
 }
 
-// The save came after the game had started fresh: keep the better
-// records (so the saved best score never goes down), this session's
-// settings, and this session's run, or else the saved one, so it isn't
-// lost (it's offered at the next start)
-function mergeLateSave(data) {
-  const now = {
-    bestScore: progress.bestScore,
-    highestLevel: progress.highestLevel,
-    campaignComplete: progress.campaignComplete,
-    tutorialDone: tutorial.done,
-    checkpoint: progress.checkpoint,
-    run: progress.run,
-    settings: { ...settings },
-  };
-  applySaveData(data);
-  progress.bestScore = Math.max(progress.bestScore, now.bestScore);
-  progress.highestLevel = Math.max(progress.highestLevel, now.highestLevel);
-  progress.campaignComplete = progress.campaignComplete || now.campaignComplete;
-  tutorial.done = tutorial.done || now.tutorialDone;
-  progress.checkpoint = now.checkpoint;
-  if (now.run) progress.run = now.run;
-  Object.assign(settings, now.settings);
-}
-
-// The start-up is over (the save is in, or it took too long): show the
+// The start-up is over (the save is in): show the
 // continue screen (a run was saved) or the "LEVEL 1" intro
 function finishStartup() {
   resize(); // the left-handed setting moves the controls
   if (progress.run) {
     continuePrompt.selected = 0;
     setState(GAME_STATE.CONTINUE_PROMPT);
-    sendGameReady(); // the buttons work right away
   } else {
     setState(GAME_STATE.LEVEL_INTRO); // level 1 is already set up
   }
