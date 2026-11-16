@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "game",
+      "runtimeExecutable": "py",
+      "runtimeArgs": ["C:/Users/roman/AppData/Local/Temp/claude/C--WORK-games-yt-playables-yt-playables-tanks/60d1f0e4-9466-42f8-b28f-caa62045de29/scratchpad/serve.py", "8080", "C:/WORK/games/yt-playables/yt-playables-tanks"],
+      "port": 8080
+    }
+  ]
+}
