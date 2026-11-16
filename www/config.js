@@ -279,6 +279,8 @@ const VISUALS = {
   groundShade: 0.35,      // strength of the big soft patches across the ground (0 = none)
   vignetteAlpha: 0.4,     // darkness in the playfield's corners (0 = no vignette)
   marginShadow: 0.5,      // darkness of the playfield's shadow on the metal around it (0-1)
+  cacheStaticMap: true,   // keep the floor and the walls as two big pictures (refreshStaticMap in render.js)
+  maxPixelRatio: 2,    // draw at most this many real pixels per CSS pixel (pixelRatio() in layout.js)
 };
 
 // =====================================================================

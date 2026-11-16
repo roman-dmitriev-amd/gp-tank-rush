@@ -133,6 +133,7 @@ function init() {
   newGame();
   setState(GAME_STATE.LOADING);
   resize();
+  watchResize(); // layout.js: from now on every size change resizes
   showLoadingScreen();
 
   // 2. Read the save (save.js): then the continue screen shows (a run

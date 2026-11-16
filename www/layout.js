@@ -58,6 +58,15 @@ const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 const safeAreaElement = document.getElementById("safe-area");
 
+// Real pixels drawn per CSS pixel: the screen's own ratio, but at most
+// VISUALS.maxPixelRatio (config.js). Phones with a ratio of 2.6-3 would
+// fill more than twice the pixels for a picture that looks the same.
+// Everything that needs the ratio asks here, so the canvas, the tile
+// size and the cached pictures always agree.
+function pixelRatio() {
+  return Math.min(window.devicePixelRatio || 1, VISUALS.maxPixelRatio);
+}
+
 const view = {
   width: 0,     // screen size in CSS pixels
   height: 0,
@@ -208,7 +217,7 @@ function resize() {
 
   // On high-resolution phone screens, draw with more real pixels so
   // it does not look blurry.
-  const ratio = window.devicePixelRatio || 1;
+  const ratio = pixelRatio();
   canvas.width = Math.round(width * ratio);
   canvas.height = Math.round(height * ratio);
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0); // draw in CSS pixels
@@ -469,9 +478,13 @@ function rectCenter(rect) {
 
 // Every size change (also rotating a phone, or the browser bar coming
 // and going) resizes. The observer catches sizes that settle a moment
-// after the resize event.
-window.addEventListener("resize", resize);
-if (typeof ResizeObserver !== "undefined") new ResizeObserver(() => resize()).observe(canvas);
+// after the resize event. Called once by init() (game.js), when every
+// script is loaded: the observer fires right away, and resize() needs
+// functions from files loaded after this one (hud.js).
+function watchResize() {
+  window.addEventListener("resize", resize);
+  if (typeof ResizeObserver !== "undefined") new ResizeObserver(() => resize()).observe(canvas);
+}
 
 // ---------------------------------------------------------------------
 // Overlay screens (level summary, game over, campaign complete, the

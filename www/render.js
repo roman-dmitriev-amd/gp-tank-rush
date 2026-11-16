@@ -32,6 +32,7 @@ function draw() {
   ctx.fillRect(0, 0, view.width, view.height);
   drawMargins();
   updatePageBackground();
+  refreshStaticMap(); // the floor and wall pictures, if the map changed
 
   // Screen shake (feedback.js): everything on the playfield is drawn a
   // few pixels off, down to the explosions; the HUD and controls are not
@@ -134,11 +135,39 @@ function drawLevelEndHint() {
   drawMessageStrip("Grab the coins!", cx, rect.y + s * 2.5, s * 0.5, "#f5c542", maxWidth);
 }
 
+// The map under the tanks: the floor (ground, sand, ice), the water,
+// scorch marks from blasts, the walls with their shadows, the vignette
+// over all that, and the border. The floor and the walls don't change
+// from frame to frame, so each is one picture of the whole playfield
+// (the static map, below) copied here; only the water and the scorch
+// marks are drawn tile by tile.
 function drawField() {
-  const s = field.tileSize;
+  const rect = fieldRect();
+  if (VISUALS.cacheStaticMap) {
+    ctx.drawImage(staticMap.floor, rect.x, rect.y, rect.width, rect.height);
+  } else {
+    paintFloor();
+  }
+  drawTiles("ground", true); // the moving floor tiles: water
+  drawScorchMarks();
+  if (VISUALS.cacheStaticMap) {
+    ctx.drawImage(staticMap.walls, rect.x, rect.y, rect.width, rect.height);
+  } else {
+    paintWalls();
+  }
+  drawVignette();
 
-  // Ground tiles in the theme's look (themes.js), then big soft patches
-  // across them so the ground doesn't look tiled
+  // Border around the whole playfield
+  ctx.strokeStyle = currentTheme().border;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(rect.x - 1, rect.y - 1, rect.width + 2, rect.height + 2);
+}
+
+// The floor, tile by tile: ground tiles in the theme's look (themes.js),
+// big soft patches across them so the ground doesn't look tiled, then
+// the floor tiles that never move (sand, ice)
+function paintFloor() {
+  const s = field.tileSize;
   for (let row = 0; row < GRID_ROWS; row++) {
     for (let col = 0; col < GRID_COLS; col++) {
       const at = tileToScreen(col, row);
@@ -146,21 +175,68 @@ function drawField() {
     }
   }
   drawGroundShade();
+  drawTiles("ground", false);
+}
 
-  // Floor tiles (water, sand, ice), scorch marks from blasts, the walls'
-  // shadows, then the walls, all under the tanks. The vignette darkens
-  // the corners of all that.
-  drawTiles("ground");
-  drawScorchMarks();
+// The walls, tile by tile, over their shadows
+function paintWalls() {
   drawWallShadows();
   drawTiles("solid");
-  drawVignette();
+}
 
-  // Border around the whole playfield
+// ---------------------------------------------------------------------
+// The static map: two pictures as big as the playfield, the floor and
+// the walls (with their shadows; see-through where there is no wall).
+// Painting them tile by tile every frame was most of a frame's work,
+// though they only change when a tile does. So they are painted again
+// only when the map (mapSignature() in map.js: a tile broken, damaged,
+// repaired, fortified), the theme or the playfield's size or place
+// changed, and copied in drawField() the rest of the time.
+// They are painted on the game's own canvas at the playfield's place
+// and copied from there, pixel for pixel, so they look exactly as if
+// drawn tile by tile. VISUALS.cacheStaticMap = false turns this off.
+// ---------------------------------------------------------------------
+const staticMap = {
+  floor: document.createElement("canvas"),
+  walls: document.createElement("canvas"),
+  // What the pictures were painted for
+  signature: null, theme: null, x: 0, y: 0, width: 0, height: 0, turned: false,
+};
+
+// Call at the start of a frame, before anything else is drawn on the
+// playfield (and before the screen shake moves it)
+function refreshStaticMap() {
+  if (!VISUALS.cacheStaticMap) return;
+  const m = staticMap;
+  const ratio = pixelRatio();
   const rect = fieldRect();
-  ctx.strokeStyle = currentTheme().border;
-  ctx.lineWidth = 2;
-  ctx.strokeRect(rect.x - 1, rect.y - 1, rect.width + 2, rect.height + 2);
+  // The playfield in real pixels (it sits on whole ones, layout.js)
+  const x = Math.round(rect.x * ratio);
+  const y = Math.round(rect.y * ratio);
+  const width = Math.max(1, Math.round(rect.width * ratio));
+  const height = Math.max(1, Math.round(rect.height * ratio));
+  const signature = mapSignature();
+  const theme = currentTheme().id;
+  if (m.signature === signature && m.theme === theme && m.x === x && m.y === y &&
+      m.width === width && m.height === height && m.turned === field.turned) return;
+  m.signature = signature;
+  m.theme = theme;
+  m.x = x; m.y = y; m.width = width; m.height = height; m.turned = field.turned;
+
+  // The floor covers the whole playfield; for the walls the playfield
+  // is emptied first, so the picture is see-through between them
+  paintFloor();
+  keep(m.floor);
+  ctx.clearRect(rect.x, rect.y, rect.width, rect.height);
+  paintWalls();
+  keep(m.walls);
+
+  // Copy the playfield's part of the game canvas into "picture"
+  function keep(picture) {
+    picture.width = width;   // (setting the size also empties it)
+    picture.height = height;
+    picture.getContext("2d").drawImage(canvas, x, y, width, height, 0, 0, width, height);
+  }
 }
 
 // ---------------------------------------------------------------------
@@ -178,7 +254,7 @@ let picturesSize = "";   // tile size in real pixels and screen size they were p
 // real pixels per CSS pixel). "scale" can be given for pictures that
 // are meant to be stretched (1 = one real pixel per CSS pixel).
 function cachedPicture(key, width, height, paint, scale) {
-  const ratio = window.devicePixelRatio || 1;
+  const ratio = pixelRatio();
   // (The screen size too, so full-screen pictures of old sizes don't pile up)
   const size = field.tileSize * ratio + "@" + view.width + "x" + view.height;
   if (size !== picturesSize) {
@@ -286,8 +362,9 @@ function clipToOverlayTiles(inside) {
 // Draw every map tile whose material is on this layer ("ground",
 // "solid" or "overlay", see materials.js). Each material draws itself
 // with its own draw function from materials.js, upright at the tile's
-// place on screen.
-function drawTiles(layer) {
+// place on screen. "moving" (optional): only the materials that move
+// (true: water) or only the ones that don't (false).
+function drawTiles(layer, moving) {
   const s = field.tileSize;
   for (let row = 0; row < GRID_ROWS; row++) {
     for (let col = 0; col < GRID_COLS; col++) {
@@ -296,6 +373,7 @@ function drawTiles(layer) {
       // (used by the fortify power-up's warning blink)
       const material = MATERIALS[cell.drawAs || cell.material];
       if (!material.draw || material.layer !== layer) continue;
+      if (moving !== undefined && !!material.moving !== moving) continue;
       const at = tileToScreen(col, row);
       material.draw(at.x, at.y, s, cell, col, row);
     }

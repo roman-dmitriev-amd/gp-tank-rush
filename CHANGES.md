@@ -87,3 +87,26 @@ The code was moved, not rewritten: every line of the old `game.js` is in exactly
 
 1. Until AdMob is in, nobody can continue after a game over (also in the Android app). That is what was asked for; just be aware when you play-test.
 2. Closing the app in the middle of a level still brings you back to the shop before that level (as before). It is not a continue, but it does let a player escape a level that is going badly. Say if you want that changed.
+
+# Round 3: quality pass (from QUALITY_PLAN.md)
+
+## Part 0: quality pass 1 finished
+
+- **Feedback effects** (plan items 1, 2, 5, 6, 7): muzzle flash, recoil, bullets as a streak with a tail, screen shake of the playfield only, a saved VIBRATION setting, a blinking star on the spawn point before an enemy appears, a ring when the player comes back, sparks on every hit, floating gold and score numbers, a ring on a power-up, and wall tiles that break into dust and pieces in their own colors. The numbers are in `FEEDBACK` (`config.js`); the code is in `www/feedback.js` (new) and `www/explosions.js`.
+- **Load error fixed**: "portraitHudLayout is not defined". The `ResizeObserver` in `layout.js` fired while later scripts were still loading. The resize listeners are now switched on by `init()` (`watchResize()`), when everything is loaded.
+- **Static map** (item 4): the floor (ground, sand, ice) and the walls with their shadows are kept as two playfield-sized pictures and painted again only when a tile, the theme or the playfield's size or place changes (`refreshStaticMap()` in `render.js`, `mapSignature()` in `map.js`). Water, scorch marks, the vignette and everything that moves are still drawn each frame. `VISUALS.cacheStaticMap = false` switches back to the old tile-by-tile drawing.
+- **Pixel ratio cap** (item 3): the canvas, the tile size and the cached pictures use at most 2 real pixels per CSS pixel (`VISUALS.maxPixelRatio`, `pixelRatio()` in `layout.js`).
+
+Tested in the browser:
+
+- No console errors on load, portrait (412x915) and landscape (1024 wide).
+- The cached map against the old drawing, whole canvas compared pixel by pixel on levels 1, 3 (also with cracked bricks, a scorch mark and the broken base), 7, 10, 13, 17 and 20: the largest difference is 2 out of 255 on one color channel (rounding where shadows are mixed), which can't be seen.
+- Drawing a frame of level 10 on this computer: 1.8 ms before, 0.5 ms with the static map.
+- The pixel ratio cap could not be seen at work here (this screen's ratio is 1.5, under the cap).
+
+## Decisions I made
+
+- **"Work directly in this folder (no worktree)"**: the session was already running in the worktree folder `.claude/worktrees/tank-rush-android-d11322` on branch `claude/tank-rush-android-d11322`, so I kept working there and pushed that branch. `main` in the project's root folder is untouched; merge the branch (or its pull request) to get the work there.
+- **Spawn warning**: the first enemy of a level now appears 0.8 s after the level starts (it used to appear at once), so it gets its warning star too. All other spawn timing is as before.
+- **VIBRATION** needs Android's VIBRATE permission in the Capacitor project later (given at install, no prompt). It is an optional save field: `SAVE_VERSION` stays 1 and older saves load with vibration on.
+- **Static map check**: instead of marking every place that changes a tile, the map's 273 tiles are summed into one number each frame and compared. It costs almost nothing and can't miss a change.

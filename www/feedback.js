@@ -44,7 +44,7 @@ function stopShake() {
 function shakeOffset() {
   const strength = shakeStrength() * field.tileSize;
   if (strength <= 0 || isPaused()) return { x: 0, y: 0 };
-  const ratio = window.devicePixelRatio || 1;
+  const ratio = pixelRatio();
   const t = shake.age * FEEDBACK.shakeSpeed;
   return {
     x: Math.round(Math.sin(t) * strength * ratio) / ratio,

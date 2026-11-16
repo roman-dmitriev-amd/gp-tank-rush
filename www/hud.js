@@ -385,7 +385,7 @@ function drawHudUpgradeBadges(row) {
 // (on whole device pixels, so it stays sharp). "flash" (0-1) brightens
 // it: the picture is added on top of itself ("lighter").
 function drawUpgradeBadge(badge, tier, x, y, size, flash, alpha) {
-  const ratio = window.devicePixelRatio || 1;
+  const ratio = pixelRatio();
   const left = Math.round(x * ratio) / ratio;
   const top = Math.round(y * ratio) / ratio;
   const picture = cachedPicture("upgrade" + badge.id + tier + "_" + size, size, size,

@@ -218,6 +218,24 @@ function setTile(col, row, materialId) {
   map[row][col] = cell;
 }
 
+// One number that changes whenever anything about the map that can be
+// seen changes: a tile's material, its health (cracks, the broken
+// base), the look it borrows for a moment ("drawAs") or the base wall
+// mark. render.js compares it each frame to know when the static map
+// must be painted again. Only whole-number sums: nothing is created.
+function mapSignature() {
+  let sum = 0;
+  for (let row = 0; row < GRID_ROWS; row++) {
+    for (let col = 0; col < GRID_COLS; col++) {
+      const cell = map[row][col];
+      let look = MATERIALS[cell.material].number * 64 + (cell.health || 0) * 2 + (cell.baseWall ? 1 : 0);
+      if (cell.drawAs) look += MATERIALS[cell.drawAs].number * 4096;
+      sum = (Math.imul(sum, 31) + look) | 0;
+    }
+  }
+  return sum;
+}
+
 // The material at this tile (OUTSIDE if it's off the playfield)
 function materialAt(col, row) {
   if (col < 0 || col >= GRID_COLS || row < 0 || row >= GRID_ROWS) return OUTSIDE;

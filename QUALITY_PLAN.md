@@ -12,37 +12,37 @@ The tile, tank and menu art, the tank blast (fire, smoke, pieces, scorch mark), 
 
 ## Proposals
 
-### 1. Shot feedback: muzzle flash, recoil, bullet with a trail — ART CHANGE (bullets only)
+### 1. Shot feedback: muzzle flash, recoil, bullet with a trail — ART CHANGE (bullets only) — DONE
 - **What:** A short flash at the cannon tip when any tank fires (a cached glow, 60–80 ms), the tank's picture drawn 1–2 px back for a few frames, and bullets drawn as a short bright streak with a faint tail instead of a plain outlined dot. Positions and hitboxes stay as they are.
 - **Why:** Firing is the most repeated action in the game and today it has no visual response at all. This is the biggest change in feel for the least work.
 - **Effort:** S. **Risk:** Low. The bullet is the only existing picture that changes.
 
-### 2. Screen shake and vibration
+### 2. Screen shake and vibration — DONE
 - **What:** A small decaying shake of the playfield only (not the HUD or controls) on tank blasts, bigger for the player's death and the base. A short vibration on the player's death, armor break and base loss. One new setting, VIBRATION, and shake strength in `config.js`.
 - **Why:** Explosions look good but carry no weight. On a phone, vibration is half of "impact".
 - **Effort:** S. **Risk:** Low. Vibration in the Android app needs the VIBRATE permission (granted at install, no prompt), which changes the "no permissions" rule in CLAUDE.md. Shake must stay small so aiming is never disturbed.
 
-### 3. Frame-time meter and a cap on drawing resolution
+### 3. Frame-time meter and a cap on drawing resolution — PARTLY DONE (the cap is in, at 2; no frame-time meter yet)
 - **What:** A DEBUG-only frame-time readout (average and worst frame), then a cap on the canvas pixel ratio (for example 2) so phones with a ratio of 2.6–3 draw far fewer pixels.
 - **Why:** The canvas is created at the full device pixel ratio (`resize()` in `layout.js`). A cheap 720p phone is fine, but a cheap 1080p phone with a weak GPU fills about 2.5 million pixels several times over per frame. Nothing can be tuned sensibly until this is measured on a real low-end device.
 - **Effort:** S. **Risk:** Low. Slightly softer picture on capped phones; the tile size must stay on whole device pixels.
 
-### 4. Draw the static map once, not every frame
+### 4. Draw the static map once, not every frame — DONE
 - **What:** Paint ground, ground shade, sand, ice, still water, wall shadows, walls and the vignette into one playfield-sized picture, repainted only when a tile changes (a brick breaks, fortify, base steel) or the theme or size changes. Per frame: one copy, then water ripples, scorch marks and everything that moves.
 - **Why:** Each frame now makes roughly 700–1000 `drawImage` calls for things that did not change: 273 ground tiles, a shadow per wall, every tile, plus two clip paths built from every forest tile. This is the largest performance cost in the game.
 - **Effort:** M. **Risk:** Medium. The layer order (scorch marks under walls, the fortify blink) must come out identical, and a missed repaint would show a stale tile. Needs a careful before/after check in every theme.
 
-### 5. Enemy spawn warning and player respawn effect
+### 5. Enemy spawn warning and player respawn effect — DONE
 - **What:** A blinking marker at the spawn point for about 0.8 s before an enemy appears (the delay comes out of the existing spawn delay, so pacing is unchanged), and a short flash or ring when the player's tank comes back.
 - **Why:** Enemies currently pop into existence, which reads as unfair when you are near the top row, and the classic genre has this for a reason.
 - **Effort:** S. **Risk:** Low. If the marker time is added on top of the spawn delay instead, levels get slightly easier.
 
-### 6. Hit and pickup feedback
+### 6. Hit and pickup feedback — DONE
 - **What:** Sparks on every bullet impact (brick and concrete included, today only on walls that deflect), a spark where two bullets cancel, a small gold sparkle and a floating "+8" when a coin is taken, floating score on a kill, and a ring in the power-up's color when one is picked up.
 - **Why:** Coins, power-ups and bullet-on-bullet hits are sound-only today. Players need to see what they earned.
 - **Effort:** S–M. **Risk:** Low. Floating text must stay small and short so it never hides bullets.
 
-### 7. Brick break with debris — ART CHANGE
+### 7. Brick break with debris — ART CHANGE — DONE
 - **What:** Replace the three growing circles used for a destroyed brick, concrete or metal tile with a small dust puff and 4–6 pieces in the tile's theme colors, built from the same parts as the tank blast.
 - **Why:** STYLE.md already notes that brick explosions "keep the old simple look". It is the weakest effect and it plays constantly, right next to the best one.
 - **Effort:** S. **Risk:** Low. Must stay much smaller and shorter than a tank blast so the field stays readable.

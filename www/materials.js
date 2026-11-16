@@ -100,6 +100,7 @@ const MATERIALS = {
     blocksTank: true,
     blocksBullet: false,
     layer: "ground",
+    moving: true,        // its ripples move: drawn every frame, not kept in the static map (render.js)
     draw: drawWater,
   },
 
@@ -155,6 +156,9 @@ const MATERIALS = {
     draw: drawBase,
   },
 };
+
+// A number for each material, for mapSignature() in map.js
+Object.keys(MATERIALS).forEach((id, i) => { MATERIALS[id].number = i + 1; });
 
 // ---------------------------------------------------------------------
 // Drawing helpers
