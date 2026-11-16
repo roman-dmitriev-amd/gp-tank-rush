@@ -16,7 +16,7 @@
 //  setting changed, the app hidden), never every frame.
 //
 //  Saved data (SAVE_VERSION 1):
-//    { version, settings: { sound, soundEffects, engineSound, leftHanded, controlType, vibration },
+//    { version, settings: { sound, music, soundEffects, engineSound, leftHanded, controlType, vibration },
 //      bestScore, highestLevel, tutorialDone, campaignComplete,
 //      checkpoint: null or { level, gold, score, upgrades, seed },
 //      run: null or { level, gold, lives, score, upgrades, continuesUsed } }
@@ -93,6 +93,7 @@ function buildSaveData() {
     version: SAVE_VERSION,
     settings: {
       sound: settings.sound,
+      music: settings.music,
       soundEffects: settings.soundEffects,
       engineSound: settings.engineSound,
       leftHanded: settings.leftHanded,
@@ -189,6 +190,7 @@ function savedInt(value, min, max) {
 function applySaveData(data) {
   const s = data.settings || {};
   if (typeof s.sound === "boolean") settings.sound = s.sound;
+  if (typeof s.music === "boolean") settings.music = s.music; // missing in older saves: stays on
   if (typeof s.soundEffects === "boolean") settings.soundEffects = s.soundEffects;
   if (typeof s.engineSound === "boolean") settings.engineSound = s.engineSound;
   if (typeof s.leftHanded === "boolean") settings.leftHanded = s.leftHanded;
@@ -275,105 +277,10 @@ function loadSaveAtStartup() {
   finishStartup();
 }
 
-// The start-up is over (the save is in): show the
-// continue screen (a run was saved) or the "LEVEL 1" intro
+// The start-up is over (the save is in): show the title screen
+// (title.js). Level 1 is already set up behind it.
 function finishStartup() {
   resize(); // the left-handed setting moves the controls
-  if (progress.run) {
-    continuePrompt.selected = 0;
-    setState(GAME_STATE.CONTINUE_PROMPT);
-  } else {
-    setState(GAME_STATE.LEVEL_INTRO); // level 1 is already set up
-  }
-}
-
-// ---------------------------------------------------------------------
-// Continue screen: "Continue from level X" (yellow) and "New game"
-// ---------------------------------------------------------------------
-const continuePrompt = { selected: 0 }; // button chosen with the keyboard
-
-// Where the screen goes (overlayFrame in layout.js): from the top of the
-// star plate to the bottom of the last button
-function continuePromptFrame() {
-  return overlayFrame(-8.6, 3.4);
-}
-
-function continuePromptButtons() {
-  const { s, cx, cy } = continuePromptFrame();
-  const width = s * 9;
-  const height = buttonHeight(s * 1.6); // at least 48 px (layout.js)
-  const x = cx - width / 2;
-  const top = cy - s * 0.5;
-  return [
-    {
-      label: "CONTINUE FROM LEVEL " + (progress.run ? progress.run.level : ""),
-      primary: true,
-      action: continueSavedRun,  // state.js
-      x, y: top, width, height,
-    },
-    {
-      label: "NEW GAME",
-      primary: false,
-      action: () => {
-        progress.run = null;
-        writeSave();
-        newGame();               // state.js
-      },
-      x, y: top + height + s * 0.6, width, height,
-    },
-  ];
-}
-
-function continuePromptTap(x, y) {
-  for (const b of continuePromptButtons()) {
-    if (x >= b.x && x <= b.x + b.width && y >= b.y && y <= b.y + b.height) {
-      Sound.play("uiTap");
-      b.action();
-      return;
-    }
-  }
-}
-
-// Up/Down choose, Enter or Space press
-function continuePromptKeyDown(event) {
-  const code = event.code;
-  if (!["ArrowUp", "ArrowDown", "Enter", "Space"].includes(code)) return;
-  event.preventDefault();
-  if (code === "ArrowUp" || code === "ArrowDown") {
-    continuePrompt.selected = 1 - continuePrompt.selected;
-    scrollOverlayTo(continuePromptButtons()[continuePrompt.selected]); // input.js
-  } else if (!event.repeat) {
-    Sound.play("uiTap");
-    continuePromptButtons()[continuePrompt.selected].action();
-  }
-}
-
-// The font size (at most "size") at which bold text fits in maxWidth
-function fitTextSize(text, size, maxWidth) {
-  ctx.font = "bold " + Math.round(size) + "px sans-serif";
-  const width = ctx.measureText(text).width;
-  return width > maxWidth ? size * maxWidth / width : size;
-}
-
-function drawContinuePrompt() {
-  const { s, cx, cy } = continuePromptFrame();
-
-  drawMetalBackground(); // same dark metal as the shop (ui.js)
-
-  // The gold star plate, the title (large, gold) and the subtitle on a
-  // metal plate, each shrunk if needed so it fits on one line inside the
-  // playfield width on narrow phones, and the best score on a small
-  // framed strip (ui.js)
-  const maxWidth = s * (GRID_COLS - 1);
-  drawStarEmblem(cx, cy - s * 7.1, s * 2.8, false);
-  drawOutlinedText(GAME_TITLE.toUpperCase(), cx, cy - s * 4.6,
-    fitTextSize(GAME_TITLE.toUpperCase(), s * 1.5, maxWidth), "#ffd75e");
-  drawTitlePlate(GAME_SUBTITLE.toUpperCase(), cx, cy - s * 3.05, s * 0.65, "#ffffff", maxWidth);
-  drawMessageStrip("BEST SCORE " + progress.bestScore, cx, cy - s * 1.7, s * 0.45, "#c9ced6", maxWidth);
-
-  // Keyboard players see which button Enter will press
-  const showSelection = showKeyboardFocus(); // input.js
-  continuePromptButtons().forEach((b, i) => {
-    drawMenuButton(b, showSelection && i === continuePrompt.selected); // gameover.js
-  });
+  titleScreen.selected = 0;
+  setState(GAME_STATE.TITLE);
 }

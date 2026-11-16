@@ -104,9 +104,33 @@ Tested in the browser:
 - Drawing a frame of level 10 on this computer: 1.8 ms before, 0.5 ms with the static map.
 - The pixel ratio cap could not be seen at work here (this screen's ratio is 1.5, under the cap).
 
+## Part 1: title screen, music, fades, counting summary
+
+- **Title screen** (`www/title.js`, new): shown on every launch with `GAME_TITLE` / `GAME_SUBTITLE`, the best score and PLAY. With a saved run it has "CONTINUE FROM LEVEL X" and "NEW GAME" instead (this was the old continue screen, moved out of `save.js`). The texts are in `UI_TEXT.title`. The first tap there starts audio, so the "LEVEL 1" fanfare is heard now.
+- **Music** (`www/music.js`, new; plan item 8): two chiptune loops written as note data and made in code: "menu" (D major, calm; title screen, shop, campaign complete) and "battle" (a D minor march, 16 bars; during a level). Each is rendered once into a sound buffer in the background after the first tap and then played as one looping buffer. Silent before the first tap, while paused (pause menu, ad, app hidden: it goes on from the same place) and during the intros, the summary and game over, where the jingles play. Volume, speeds, the mix and which screen plays what are in `MUSIC` (`config.js`).
+- **MUSIC: ON/OFF** in Settings, under SOUND. Saved as an optional field (`settings.music`); older saves load with music on. SOUND off silences music too.
+- **Fades** (item 10): on every change of screen the old screen fades out over the new one (0.25 s; 0.12 s for the pause menu and its pages), `TRANSITION` in `config.js`, code in `screens.js`. The new screen works from the first moment.
+- **Counting level summary** (item 11): the rows appear one by one with a tick, then the two gold totals count up with a coin sound. A tap anywhere or Enter shows everything at once; CONTINUE works when it is all there. `SUMMARY` in `config.js`.
+- **Tank treads (item 15): not done**, see "Decisions I made".
+
+Tested in the browser (the preview window was in the background, so frames were stepped from the console; clicks were real):
+
+- Title: PLAY starts the "LEVEL 1" intro; with a saved run the two buttons show and CONTINUE opens the shop. Portrait 412x915 and landscape.
+- Music: after the first click both loops were rendered; "battle" plays in a level and there is signal on the music bus; it stops with the pause menu, with MUSIC off and with SOUND off, and comes back each time; the shop switches to "menu".
+- Summary: rows fade in in order, the totals count ("+90" on the way to "+154"), a tap skips, CONTINUE works after. Portrait and landscape (844x390).
+- Settings with 7 switches: portrait fits; landscape 844x390 fits in two columns (4 + 3), every button 48 px.
+- No console errors.
+- **Not checked: how the music sounds.** I can't listen to it. The notes are written by rule (chords, a melody on chord notes), so it should be in tune, but whether it is pleasant, and how loud it is against the effects, needs your ear.
+
 ## Decisions I made
 
 - **"Work directly in this folder (no worktree)"**: the session was already running in the worktree folder `.claude/worktrees/tank-rush-android-d11322` on branch `claude/tank-rush-android-d11322`, so I kept working there and pushed that branch. `main` in the project's root folder is untouched; merge the branch (or its pull request) to get the work there.
 - **Spawn warning**: the first enemy of a level now appears 0.8 s after the level starts (it used to appear at once), so it gets its warning star too. All other spawn timing is as before.
 - **VIBRATION** needs Android's VIBRATE permission in the Capacitor project later (given at install, no prompt). It is an optional save field: `SAVE_VERSION` stays 1 and older saves load with vibration on.
 - **Static map check**: instead of marking every place that changes a tile, the map's 273 tiles are summed into one number each frame and compared. It costs almost nothing and can't miss a change.
+- **Title screen**: I reused the old "Continue / New game" screen as the title screen instead of adding a second screen in front of it, so there is one tap, not two, between launch and play.
+- **Music placement**: no music during the "LEVEL X" intro, the level summary and game over, because the fanfare and jingles play there and two tunes at once sound wrong. The battle tune starts over at each level; after a pause it goes on where it stopped.
+- **Music is rendered, not played live**: about 1.2 MB of memory per loop at 22 kHz mono, in exchange for almost no work while playing.
+- **Tank treads (item 15) not done**: the tread lines are part of each tank picture. Moving them means painting the track area again, which changes the sprite, and you asked for that not to happen. Dust or track marks would be a different effect, so I left the item open in QUALITY_PLAN.md.
+- **Summary button**: CONTINUE now also waits for the count to finish (about 2 s), unless a tap skips it. The 1 s button delay is unchanged.
+

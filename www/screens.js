@@ -9,9 +9,10 @@
 // Its size and place are set in layoutScreenButton().
 const screenButton = { x: 0, y: 0, width: 0, height: 0 };
 
-// Can the button be used yet? (Short wait after the screen appears.)
+// Can the button be used yet? (Short wait after the screen appears,
+// and the summary has finished counting.)
 function screenButtonReady() {
-  return gameState === GAME_STATE.LEVEL_SUMMARY && stateTimer >= BUTTON_DELAY;
+  return gameState === GAME_STATE.LEVEL_SUMMARY && stateTimer >= BUTTON_DELAY && summaryShowDone();
 }
 
 function isInsideScreenButton(x, y) {
@@ -22,6 +23,7 @@ function isInsideScreenButton(x, y) {
 
 // Shop before the next level; after level 20: "CAMPAIGN COMPLETE"
 function pressScreenButton() {
+  if (skipSummaryShow()) return; // still counting: show it all first
   if (!screenButtonReady()) return;
   Sound.play("uiTap");
   if (reachedCampaignEnd()) showCampaignComplete();
@@ -105,7 +107,106 @@ function summaryRows() {
     ["Gold this level", "+" + stats.totalGold, true, "#ffe27a", "#ffe27a"],
     ["Your gold", String(gold), true, "#ffffff", "#ffffff"],
   ];
+
+  // How much of it shows right now (the summary show, below): each row
+  // gets its opacity (0 = not yet) and the totals the number they have
+  // counted up to. The layout always uses the final texts.
+  const t = summaryShowTime();
+  const fade = (since) => clamp((t - since) / SUMMARY.rowFade, 0, 1);
+  rows.forEach((row, i) => row.push(fade(summaryRowTime(i))));
+  const totalsAt = summaryRowTime(rows.length);
+  const counted = Math.round(stats.totalGold * easeOut(clamp((t - totalsAt) / SUMMARY.countTime, 0, 1)));
+  totals[0].push(fade(totalsAt), "+" + counted);
+  totals[1].push(fade(totalsAt), String(gold - stats.totalGold + counted));
   return { rows, totals };
+}
+
+// Draw one of summaryRows()'s rows, as much as shows of it right now
+function drawSummaryRow([label, value, coin, labelColor, valueColor, alpha, shown], left, right, y, size) {
+  if (alpha <= 0) return;
+  ctx.globalAlpha = alpha;
+  drawPanelRow(label, shown === undefined ? value : shown, left, right, y, size, labelColor, valueColor, coin);
+  ctx.globalAlpha = 1;
+}
+
+// ---------------------------------------------------------------------
+// The summary show: the rows appear one after another, each with a tick,
+// then the two gold totals count up (SUMMARY in config.js). A tap or
+// Enter shows everything at once; CONTINUE works once it's all there.
+// ---------------------------------------------------------------------
+const summaryShow = { skipped: false, heard: 0 };
+
+function resetSummaryShow() {
+  summaryShow.skipped = false;
+  summaryShow.heard = 0;
+}
+
+// Seconds into the show (everything is there once it was skipped)
+function summaryShowTime() {
+  return summaryShow.skipped ? Infinity : stateTimer;
+}
+
+// When row number i starts to show (the totals come after the last row)
+function summaryRowTime(i) {
+  return SUMMARY.firstRow + i * SUMMARY.rowGap;
+}
+
+function summaryShowDone() {
+  const rowCount = 2 + levelStats.bonuses.length; // as in summaryRows()
+  return summaryShowTime() >= summaryRowTime(rowCount) + SUMMARY.countTime;
+}
+
+// Show everything now. Returns true if that changed anything (so the
+// tap or key that did it does nothing else).
+function skipSummaryShow() {
+  if (gameState !== GAME_STATE.LEVEL_SUMMARY || summaryShowDone()) return false;
+  summaryShow.skipped = true;
+  return true;
+}
+
+// Each frame on the summary: a tick for every row that just appeared,
+// and a coin sound as the totals start to count
+function updateSummaryShow() {
+  if (summaryShow.skipped) return;
+  const rowCount = 2 + levelStats.bonuses.length;
+  let showing = 0;
+  while (showing <= rowCount && stateTimer >= summaryRowTime(showing)) showing += 1;
+  if (showing > summaryShow.heard) {
+    summaryShow.heard = showing;
+    Sound.play(showing > rowCount ? "coin" : "tick");
+  }
+}
+
+// ---------------------------------------------------------------------
+// Fades between screens: when the screen changes, a picture of the old
+// one is kept and drawn over the new one, fading out. The new screen is
+// there and works from the first moment; nothing waits for the fade.
+// Counted in real time, so it also runs while the game is paused.
+// ---------------------------------------------------------------------
+const transition = { picture: document.createElement("canvas"), start: -Infinity, time: 0 };
+
+// Call just BEFORE the screen changes: keeps what is on the canvas now
+function startTransition(seconds) {
+  if (canvas.width < 2 || isSystemPaused()) return; // nothing drawn yet, or nothing to see
+  const picture = transition.picture;
+  picture.width = canvas.width;   // (setting the size also empties it)
+  picture.height = canvas.height;
+  picture.getContext("2d").drawImage(canvas, 0, 0);
+  transition.start = performance.now();
+  transition.time = seconds * 1000;
+}
+
+function stopTransition() {
+  transition.start = -Infinity;
+}
+
+// The old screen over the new one, fading out (render.js, end of a frame)
+function drawTransition() {
+  const p = (performance.now() - transition.start) / transition.time;
+  if (!(p < 1)) return;
+  ctx.globalAlpha = 1 - p;
+  ctx.drawImage(transition.picture, 0, 0, view.width, view.height);
+  ctx.globalAlpha = 1;
 }
 
 // Summary after each level: a framed panel with the title on a plate
@@ -129,8 +230,8 @@ function drawLevelSummary() {
   const right = panel.x + panel.width - frame - s * 0.45;
   const size = s * 0.52;
   let y = cy - s * 4;
-  const row = ([label, value, coin, labelColor, valueColor]) => {
-    drawPanelRow(label, value, left, right, y, size, labelColor, valueColor, coin);
+  const row = (item) => {
+    drawSummaryRow(item, left, right, y, size);
     y += s * 0.95;
   };
 
@@ -185,15 +286,13 @@ function drawSummaryColumns() {
   drawFramedPanel(p.x, p.y, p.width, p.height);
   drawTitlePlate("LEVEL " + (levelIndex + 1) + " COMPLETE", p.x + p.width / 2, p.y, p.titleSize, "#7ee081", p.width);
 
-  m.rows.forEach(([label, value, coin, labelColor, valueColor], i) => {
-    drawPanelRow(label, value, left, left + p.left.width, m.rowY(i), m.font, labelColor, valueColor, coin);
-  });
+  m.rows.forEach((item, i) => drawSummaryRow(item, left, left + p.left.width, m.rowY(i), m.font));
 
   const strip = m.strip;
   ctx.fillStyle = "rgba(245, 197, 66, 0.1)";
   ctx.fillRect(strip.x, strip.y, strip.width, strip.height);
-  m.totals.forEach(([label, value, coin, labelColor, valueColor], i) => {
-    drawPanelRow(label, value, strip.x + m.inset, strip.x + strip.width - m.inset, m.totalY(i), m.font, labelColor, valueColor, coin);
+  m.totals.forEach((item, i) => {
+    drawSummaryRow(item, strip.x + m.inset, strip.x + strip.width - m.inset, m.totalY(i), m.font);
   });
 
   drawScreenButton();

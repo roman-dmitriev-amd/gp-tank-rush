@@ -18,6 +18,7 @@
 // ---------------------------------------------------------------------
 const settings = {
   sound: true,            // all sound on/off (the overall switch)
+  music: true,            // the music on/off (music.js)
   soundEffects: true,     // sound effects on/off
   engineSound: true,      // the player tank's engine sound on/off
   leftHanded: false,      // false: movement left, FIRE right. true: swapped
@@ -59,6 +60,7 @@ function canOpenPauseMenu() {
 // "silent": without the tap sound (the app is being hidden, game.js)
 function openPauseMenu(silent) {
   if (!canOpenPauseMenu() || pauseMenu.open) return;
+  startTransition(TRANSITION.menu); // screens.js
   pauseMenu.open = true;
   if (silent !== true) Sound.play("uiTap");
   showPausePage("main");
@@ -66,11 +68,13 @@ function openPauseMenu(silent) {
 }
 
 function closePauseMenu() {
+  if (pauseMenu.open) startTransition(TRANSITION.menu);
   pauseMenu.open = false;
   resetOverlayScroll(); // layout.js
 }
 
 function showPausePage(page) {
+  if (pauseMenu.open && page !== pauseMenu.page) startTransition(TRANSITION.menu);
   pauseMenu.page = page;
   pauseMenu.selected = 0;
   resetOverlayScroll();
@@ -220,6 +224,13 @@ function pauseMenuItems() {
         action: () => {
           settings.sound = !settings.sound;
           Sound.refreshMute(); // audio.js: everything quiet, or back on
+          writeSave();
+        },
+      },
+      {
+        label: "MUSIC: " + (settings.music ? "ON" : "OFF"),
+        action: () => {
+          settings.music = !settings.music;
           writeSave();
         },
       },

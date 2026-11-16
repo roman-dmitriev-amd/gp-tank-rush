@@ -47,7 +47,7 @@ The tile, tank and menu art, the tank blast (fire, smoke, pieces, scorch mark), 
 - **Why:** STYLE.md already notes that brick explosions "keep the old simple look". It is the weakest effect and it plays constantly, right next to the best one.
 - **Effort:** S. **Risk:** Low. Must stay much smaller and shorter than a tank blast so the field stays readable.
 
-### 8. Background music
+### 8. Background music — DONE
 - **What:** Music with its own MUSIC setting: one menu/shop loop and one battle loop (ideally a variation per world), fading under the level jingles and stopping with the existing pause and ad rules.
 - **In code:** A small step sequencer on the existing `melody()` / `heldNote()` helpers can make a chiptune-style military march. Costs no file size. It will sound "retro", not orchestral, and I can only write simple tunes. Each loop can be rendered once into a sound buffer at start-up, so playing it costs almost nothing on a slow phone.
 - **Rendered to files:** The same code can be rendered to WAV on the computer and shipped as files, but uncompressed loops are large (about 2.5 MB per minute in mono). Compressed OGG needs an outside encoder, which you would run.
@@ -55,17 +55,17 @@ The tile, tank and menu art, the tank blast (fire, smoke, pieces, scorch mark), 
 - **Why:** A silent game reads as unfinished in a store listing video and in the first ten seconds of play.
 - **Effort:** M (in code) or S (playing files you supply). **Risk:** Medium. A weak or repetitive loop is worse than none, so it needs your ear, and the engine loop has to be re-balanced against it.
 
-### 9. Title screen
+### 9. Title screen — DONE
 - **What:** A first screen with the star plate, the title and a PLAY button (plus CONTINUE when a run is saved, which the start-up screen already draws). Today a new player goes straight into "LEVEL 1".
 - **Why:** The first tap unlocks audio, so the first level's fanfare is never heard and music could not start. It also gives the game a proper front door and a place for settings before play.
 - **Effort:** S. **Risk:** Low. One extra tap before the first game.
 
-### 10. Screen transitions
+### 10. Screen transitions — DONE
 - **What:** A quick fade (150–250 ms) between screens, panels that slide or scale in, and a "LEVEL X" intro whose text moves in and out instead of appearing. Drawn with alpha and position only.
 - **Why:** Every state change is a hard cut, which makes otherwise polished menus feel abrupt.
 - **Effort:** M. **Risk:** Low–medium. Input must stay locked during a transition, and it touches each screen's draw function.
 
-### 11. Level summary that counts up
+### 11. Level summary that counts up — DONE
 - **What:** Rows appear one by one with a tick sound, the gold total counts up, earned bonuses flash. A tap skips to the end.
 - **Why:** The reward moment is a static table. Counting up is the cheapest way to make earning gold feel good.
 - **Effort:** S. **Risk:** Low. Must be skippable, and the existing button delay stays.
@@ -85,7 +85,7 @@ The tile, tank and menu art, the tank blast (fire, smoke, pieces, scorch mark), 
 - **Why:** The base can be lost from off-attention with no warning. Losing should always feel like something the player saw coming.
 - **Effort:** S–M. **Risk:** Low. The alarm needs a repeat limit so it never nags.
 
-### 15. Tank motion: moving treads, dust, track marks — ART CHANGE (tank picture)
+### 15. Tank motion: moving treads, dust, track marks — ART CHANGE (tank picture) — NOT DONE (would change the tank sprites, see CHANGES.md)
 - **What:** Two tread pictures per tank swapped while it drives, small dust puffs behind a moving tank (snow spray on snow, splashes at shores), and faint track marks that fade like scorch marks.
 - **Why:** Tanks slide as rigid pictures. Movement is the second most constant thing on screen after firing.
 - **Effort:** M. **Risk:** Medium. Doubles the cached tank pictures, the tread detail has to read at 30 px, and track marks must be capped like scorch marks.

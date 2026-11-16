@@ -54,9 +54,9 @@ window.addEventListener("keydown", (event) => {
     return;
   }
 
-  // Continue screen at start-up (save.js)
-  if (gameState === GAME_STATE.CONTINUE_PROMPT) {
-    continuePromptKeyDown(event);
+  // The title screen (title.js)
+  if (gameState === GAME_STATE.TITLE) {
+    titleScreenKeyDown(event);
     return;
   }
 
@@ -289,9 +289,9 @@ canvas.addEventListener("pointerdown", (event) => {
     return;
   }
 
-  // Continue screen at start-up (save.js)
-  if (gameState === GAME_STATE.CONTINUE_PROMPT) {
-    overlayPointerDown(event, continuePromptTap);
+  // The title screen (title.js)
+  if (gameState === GAME_STATE.TITLE) {
+    overlayPointerDown(event, titleScreenTap);
     return;
   }
 
@@ -380,7 +380,9 @@ function overlayPointerDown(event, tap) {
 }
 
 // The level summary's CONTINUE button (intros have no button)
+// (a tap anywhere first shows a summary that is still counting)
 function screenButtonTap(x, y) {
+  if (skipSummaryShow()) return;
   if (isInsideScreenButton(x, y)) pressScreenButton();
 }
 

@@ -82,7 +82,7 @@ let levelEndTimer = null;    // null = still fighting
 // ---------------------------------------------------------------------
 const GAME_STATE = {
   LOADING: "loading",              // start-up: waiting for the save (save.js)
-  CONTINUE_PROMPT: "continuePrompt", // "Continue from level X" / "New game" (save.js)
+  TITLE: "title",                  // the title screen: PLAY, or continue a saved run (title.js)
   WORLD_INTRO: "worldIntro",       // "World 2: Jungle" when the theme changes
   LEVEL_INTRO: "levelIntro",       // "LEVEL X" shown before play starts
   PLAYING: "playing",              // the normal game
@@ -100,6 +100,7 @@ function isPlaying() {
 }
 
 function setState(newState) {
+  startTransition(TRANSITION.screen); // the screen as it is now fades out (screens.js)
   gameState = newState;
   stateTimer = 0;
   releaseAllInput(); // don't carry held buttons into the new screen
@@ -116,6 +117,7 @@ function finishLevel() {
   endAllEffects();
   powerUp = null;
   awardLevelBonuses();
+  resetSummaryShow(); // the summary's rows appear one by one (screens.js)
   updateRecords(); // best score, highest level (save.js)
   writeSave();
   setState(GAME_STATE.LEVEL_SUMMARY);

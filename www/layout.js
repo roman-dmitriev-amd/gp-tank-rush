@@ -234,7 +234,10 @@ function resize() {
   fireButton.y = layout.fireButton.y;
   fireButton.radius = layout.fireButton.radius;
 
-  if (sizeChanged) releaseForNewLayout();
+  if (sizeChanged) {
+    releaseForNewLayout();
+    stopTransition(); // a fading picture of the old size would be stretched (screens.js)
+  }
   draw();
 }
 

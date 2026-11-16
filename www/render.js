@@ -8,20 +8,27 @@
 // ---------------------------------------------------------------------
 // Drawing
 // ---------------------------------------------------------------------
+// One frame: the current screen, and over it the last screen fading
+// out while a transition runs (screens.js)
 function draw() {
+  drawScreen();
+  drawTransition();
+}
+
+function drawScreen() {
   // The shop is a full screen of its own (shop.js)
   if (gameState === GAME_STATE.SHOP) {
     drawShop();
     return;
   }
 
-  // Start-up screens: waiting for the save, or "Continue?" (save.js)
+  // Start-up screens: waiting for the save, then the title screen (title.js)
   if (gameState === GAME_STATE.LOADING) {
     showLoadingScreen();
     return;
   }
-  if (gameState === GAME_STATE.CONTINUE_PROMPT) {
-    drawContinuePrompt();
+  if (gameState === GAME_STATE.TITLE) {
+    drawTitleScreen();
     return;
   }
 

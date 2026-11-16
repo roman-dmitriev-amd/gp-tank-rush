@@ -45,6 +45,8 @@ function update(deltaSeconds) {
       break;
 
     case GAME_STATE.LEVEL_SUMMARY:
+      updateSummaryShow(); // screens.js: a tick as each row appears
+      // (falls through)
     case GAME_STATE.CAMPAIGN_COMPLETE:
     case GAME_STATE.LOST:
       // Everything is frozen; only let the last explosions finish (and
@@ -75,6 +77,7 @@ function loop(time) {
   if (!isPaused()) update(deltaSeconds);
   updateAdWait(deltaSeconds);
   updateEngineSound();
+  updateMusic(); // music.js: the tune for this screen, or silence
   draw();
 
   frameRequest = requestAnimationFrame(loop);
@@ -105,6 +108,7 @@ document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     openPauseMenu(true); // without the tap sound; does nothing outside a level
     setSystemPause(true);
+    updateMusic(); // the loop is stopped now: remember where the music was
     writeSave();
   } else {
     setSystemPause(false);
@@ -136,8 +140,7 @@ function init() {
   watchResize(); // layout.js: from now on every size change resizes
   showLoadingScreen();
 
-  // 2. Read the save (save.js): then the continue screen shows (a run
-  //    was saved) or the "LEVEL 1" intro starts
+  // 2. Read the save (save.js): then the title screen shows (title.js)
   document.title = GAME_TITLE + ": " + GAME_SUBTITLE;
   loadSaveAtStartup();
 

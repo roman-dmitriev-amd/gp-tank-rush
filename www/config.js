@@ -19,6 +19,11 @@ const GAME_SUBTITLE = "Base Defense";
 // Texts on screen, kept here so they're easy to change. Written as they
 // show; {level} and {left} are filled in by the game.
 const UI_TEXT = {
+  title: {
+    play: "PLAY",
+    continueRun: "CONTINUE FROM LEVEL {level}", // with a saved run, {level} = the level it goes on with
+    newGame: "NEW GAME",
+  },
   gameOver: {
     watchAd: "WATCH AD TO CONTINUE",                     // continue button, while a rewarded ad is ready (ads.js)
     retrySub: "Retry level {level}, keep your upgrades", // its smaller second line, {level} = the level just lost
@@ -105,6 +110,22 @@ const BUTTON_DELAY = 1.0;         // seconds
 // After the last enemy is destroyed, play goes on this long so the
 // player can still grab the coins (ends early once none are left)
 const LEVEL_END_DELAY = 4;        // seconds
+
+// Fades between screens (screens.js): the old screen fades out over
+// the new one. Only looks: the new screen works at once.
+const TRANSITION = {
+  screen: 0.25,   // seconds, between game states (title, intro, play, summary, shop...)
+  menu: 0.12,     // seconds, opening / closing the pause menu and its pages
+};
+
+// The level summary's rows appear one after another and the gold counts
+// up (screens.js). A tap or Enter shows everything at once.
+const SUMMARY = {
+  firstRow: 0.3,   // seconds until the first row shows
+  rowGap: 0.2,     // seconds between rows
+  rowFade: 0.15,   // seconds a row takes to fade in
+  countTime: 0.7,  // seconds the gold totals count up
+};
 
 // Shop screen (shop.js)
 const SHOP_SHAKE_TIME = 0.35;   // seconds a card shakes (can't be bought)
@@ -462,7 +483,29 @@ const AUDIO = {
     levelComplete: 0.27,
     gameOver: 0.35,
     uiTap: 0.3,
+    tick: 0.22,          // a row appearing on the level summary
   },
+};
+
+// =====================================================================
+//  Music (music.js): two chiptune loops made in code and rendered once
+//  into sound buffers. The notes themselves are in music.js (TUNES).
+// =====================================================================
+
+const MUSIC = {
+  volume: 0.16,        // master volume of the music: quiet, under the effects
+  sampleRate: 22050,   // Hz the loops are rendered at (plenty for chiptune, half the memory)
+  softenAbove: 3200,   // Hz: a low-pass on the melody and the bass
+  fadeIn: 0.5,         // seconds to fade in when a tune starts or goes on
+  fadeOut: 0.25,       // seconds to fade out when it stops
+  bpm: { menu: 92, battle: 126 },  // speed of each tune, beats per minute
+
+  // Which tune plays in which game state (GAME_STATE in state.js). The
+  // other states are silent: the level's jingles play there.
+  states: { title: "menu", shop: "menu", campaignComplete: "menu", playing: "battle" },
+
+  // Volume of each instrument inside a tune
+  mix: { lead: 0.2, bass: 0.2, arp: 0.09, kick: 0.5, snare: 0.22, hat: 0.07 },
 };
 
 // The player tank's engine (audio.js): a quiet low rumble while it

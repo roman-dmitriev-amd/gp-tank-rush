@@ -27,6 +27,7 @@
 //  Where the sound goes (made in code or from a file, the same way):
 //    each effect -> its volume -> effects volume -> softener (low-pass) -+
 //    engine ------------------------------------ -> engine volume -------+-> mute -> limiter -> speakers
+//    music (music.js) -------------------------- -> music volume --------+
 //  The limiter (a compressor) keeps many sounds at once from clipping.
 // =====================================================================
 
@@ -34,6 +35,7 @@ const Sound = (() => {
   let audioCtx = null;     // created on the first input
   let effectsBus = null;   // every effect goes through this (AUDIO.effectsVolume)
   let engineBus = null;    // the engine goes through this (ENGINE_VOLUME)
+  let musicOut = null;     // the music goes through this (MUSIC.volume, music.js)
   let mute = null;         // 1 = sound on, 0 = muted
   let noiseBuffer = null;  // 1 second of white noise, reused by all sounds
   let engine = null;       // the engine's nodes, made the first time it runs
@@ -164,6 +166,16 @@ const Sound = (() => {
     engineBus = audioCtx.createGain();
     engineBus.gain.value = ENGINE_VOLUME;
     engineBus.connect(mute);
+
+    musicOut = audioCtx.createGain();
+    musicOut.gain.value = MUSIC.volume;
+    musicOut.connect(mute);
+  }
+
+  // Where music.js sends the music: its own volume, then the same mute
+  // and limiter as everything else. null until audio has started.
+  function musicBus() {
+    return musicOut;
   }
 
   function makeNoiseBuffer() {
@@ -552,6 +564,12 @@ const Sound = (() => {
       return 1.6;
     },
     // A short soft click
+    // A tiny high blip (a row appearing on the level summary)
+    tick(out, t) {
+      tone(out, t, { type: "square", from: 1250, to: 950, decay: 0.035, volume: 0.5 });
+      return 0.05;
+    },
+
     uiTap(out, t) {
       tone(out, t, { type: "sine", from: 1100, to: 700, attack: 0.002, decay: 0.03, volume: 0.8 });
       noise(out, t, { filter: "bandpass", from: 2500, q: 1, decay: 0.008, volume: 0.3 });
@@ -810,5 +828,5 @@ const Sound = (() => {
     if (DEBUG && event.code === "KeyT" && !event.repeat) testBeep();
   });
 
-  return { play, setEngine, refreshMute, setSystemPaused, setAdPlaying, isEnabled };
+  return { play, setEngine, refreshMute, setSystemPaused, setAdPlaying, isEnabled, musicBus };
 })();
