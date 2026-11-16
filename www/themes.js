@@ -188,20 +188,20 @@ const THEMES = {
 };
 
 // The theme of the level being played (standard if the level has none
-// or an unknown one; checkLevels in game.js warns about that)
+// or an unknown one; checkLevels in map.js warns about that)
 function currentTheme() {
   return THEMES[currentLevel().theme] || THEMES.standard;
 }
 
 // ---------------------------------------------------------------------
-// Drawing (uses the game's canvas "ctx" from game.js)
+// Drawing (uses the game's canvas "ctx" from layout.js)
 // ---------------------------------------------------------------------
 
 const GROUND_VARIANTS = 6;  // different ground tile looks per theme
 
 // One empty ground tile of the current theme. Each tile gets one of
 // GROUND_VARIANTS looks, picked from its position (so it never changes),
-// painted once (cachedPicture in game.js) and copied after that.
+// painted once (cachedPicture in render.js) and copied after that.
 function drawGround(x, y, s, col, row) {
   const theme = currentTheme();
   const variant = groundVariant(col, row);
@@ -352,7 +352,7 @@ function drawGroundShade() {
       c.fillRect(x - r, y - r, r * 2, r * 2);
     }
   }, 1);
-  const rect = fieldRect(); // game.js
+  const rect = fieldRect(); // layout.js
   ctx.drawImage(picture, rect.x, rect.y, rect.width, rect.height);
 }
 
@@ -365,7 +365,7 @@ function drawGroundShade() {
 // with brushed lines, seams and rivets, a little of the theme's screen
 // color mixed in), with the playfield's soft shadow on it and a thin
 // metal frame around the playfield. All of it is one picture, painted
-// once per theme and screen size (cachedPicture in game.js, at one pixel
+// once per theme and screen size (cachedPicture in render.js, at one pixel
 // per CSS pixel since it's background) and copied every frame.
 // ---------------------------------------------------------------------
 function drawMargins() {
@@ -380,7 +380,7 @@ function drawMargins() {
 
 function paintMargins(c, width, height, theme) {
   const s = field.tileSize;
-  const rect = fieldRect(); // game.js: the playfield as it is on screen
+  const rect = fieldRect(); // layout.js: the playfield as it is on screen
   paintMetalBackground(c, width, height, theme.screen); // ui.js
   paintFieldShadow(c, rect, s);
   paintFieldFrame(c, rect, s);
@@ -462,14 +462,14 @@ for (let i = 0; i < Math.min(AMBIENT.snowFlakes, 40); i++) {
   });
 }
 
-// Draw the current theme's ambient effect over the playfield (game.js
+// Draw the current theme's ambient effect over the playfield (render.js
 // calls this after the tanks and bullets, before the forest overlay).
 // Snow falls down the screen, whether the playfield is turned or not.
 function drawAmbient() {
   if (!AMBIENT.enabled || currentTheme().ambient !== "snow") return;
 
   const s = field.tileSize;
-  const rect = fieldRect(); // game.js
+  const rect = fieldRect(); // layout.js
   const width = rect.width;
   const height = rect.height;
   ctx.save();

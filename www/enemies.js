@@ -3,7 +3,7 @@
 //
 //  Each type has:
 //    speed        movement speed, as a multiple of ENEMY_SPEED in
-//                 game.js (1 = normal, 2 = twice as fast)
+//                 enemyai.js (1 = normal, 2 = twice as fast)
 //    health       player bullet hits needed to destroy it
 //    bulletSpeed  how fast its bullets fly, in tiles per second
 //    fireMin,     it shoots every fireMin to fireMax seconds

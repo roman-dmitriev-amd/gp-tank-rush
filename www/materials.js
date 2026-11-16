@@ -29,7 +29,7 @@
 //    destroySound    (optional) the sound instead of hitSound when the
 //                    hit destroys it
 //    castsShadow     (optional) throws a shadow onto the floor to the
-//                    bottom-right, so it looks raised (game.js)
+//                    bottom-right, so it looks raised (render.js)
 //    draw            function that draws one tile of it:
 //                    draw(x, y, size, cell, col, row) where cell.health
 //                    is the health it has left and col, row its place
@@ -158,7 +158,7 @@ const MATERIALS = {
 
 // ---------------------------------------------------------------------
 // Drawing helpers
-// These use the game's canvas "ctx" (set up in game.js).
+// These use the game's canvas "ctx" (set up in layout.js).
 // x, y = top-left corner of the tile on screen, s = tile size.
 // Colors come from the current theme (themes.js), so the same shapes
 // look different in each world.
@@ -224,7 +224,7 @@ function withAlpha(hex, alpha) {
 // Brick: rows of bricks with dark sunken joints, every other row
 // shifted by half a brick, like a real wall. The wall around the base
 // uses the theme's "baseWall" colors. Drawing every brick each frame
-// would be slow, so each look is painted once (cachedPicture in game.js)
+// would be slow, so each look is painted once (cachedPicture in render.js)
 // and copied after that; only the damage is drawn live.
 const BRICK_VARIANTS = 4;  // how many different brick tile looks
 
@@ -320,7 +320,7 @@ function chipCorner(c, left, top, right, bottom, size, corner, color) {
 // from the top-left (light top/left edges, dark bottom/right edges),
 // with a faint stain, small pits and now and then a chipped corner.
 // Four blocks and no rivets, so it reads differently from metal.
-// Painted once per look (cachedPicture in game.js); only the damage is
+// Painted once per look (cachedPicture in render.js); only the damage is
 // drawn live.
 const CONCRETE_VARIANTS = 3;
 
@@ -392,7 +392,7 @@ function paintConcrete(c, s, colors, variant) {
 // brushed lines, a wide bevel (bright top, light left, dark right,
 // darkest bottom), a few scratches and a shaded rivet in each corner.
 // Only armor-piercing bullets hurt it (its cracks are drawn live).
-// Painted once per look (cachedPicture in game.js).
+// Painted once per look (cachedPicture in render.js).
 const METAL_VARIANTS = 3;
 
 function drawMetal(x, y, s, cell, col, row) {
@@ -479,7 +479,7 @@ function paintMetal(c, s, colors, variant) {
 }
 
 // The base: a gold star, or the broken star plate once it has been
-// destroyed. Both are painted once (cachedPicture in game.js).
+// destroyed. Both are painted once (cachedPicture in render.js).
 function drawBase(x, y, s, cell) {
   const broken = cell.health <= 0;
   const picture = cachedPicture(broken ? "baseBroken" : "base", s, s, (c) => paintBase(c, s, broken));
@@ -679,7 +679,7 @@ function paintGoldStar(c, cx, cy, tip, inner, colors, snapped) {
 // four neighbours (sameSides), so patches join up: inside a patch the
 // tiles run into each other without seams, and only the sides that
 // touch other ground get a shore, a soft edge or a rim. Each look is
-// painted once (cachedPicture in game.js) per theme, sides and variant.
+// painted once (cachedPicture in render.js) per theme, sides and variant.
 // The variant comes from the tile's position (groundVariant, themes.js).
 // ---------------------------------------------------------------------
 
@@ -689,7 +689,7 @@ const SIDES = ["up", "right", "down", "left"];
 // Which sides of the map tile at (col, row), as it is drawn on screen,
 // continue into the same material: bit 1 = up, 2 = right, 4 = down,
 // 8 = left. The neighbour on each side is found through directionOnMap
-// (game.js), so a turned playfield gets its shores and edges on the
+// (render.js), so a turned playfield gets its shores and edges on the
 // right sides. Outside the map counts as the same if "outsideCounts" is
 // true (a river runs off the map instead of getting a shore along the
 // map's edge).
@@ -809,7 +809,7 @@ function drawWater(x, y, s, cell, col, row) {
 
   ctx.drawImage(cachedPicture("water" + look, s, s, (c) => paintWater(c, s, colors, sides, variant)), x, y, s, s);
   // (The strips run across the screen, so they follow the grid on screen)
-  const at = screenCell(col, row); // game.js
+  const at = screenCell(col, row); // layout.js
   drawSliding(wavePicture("ripples", colors, s), x, y, s, at.col + gameTime * 0.18 + at.row * 0.37);
   drawSliding(wavePicture("sparkles", colors, s), x, y, s, at.col - gameTime * 0.35 + at.row * 0.61);
   if (sides !== 15) {

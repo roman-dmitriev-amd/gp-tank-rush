@@ -37,9 +37,53 @@
 
 ## Decide
 
-1. **Free continue**: with no ad, "CONTINUE" is free and has no limit (`REWARDED_CONTINUES_PER_RUN = null`), so a run can't really be lost from level 2 on. Fine for testing; before release without ads, set a number (for example 1-3) or wait for AdMob.
+1. ~~Free continue~~: settled in round 2 below (ad only, 1 per run).
 2. **SOUND EFFECTS and ENGINE SOUND**: kept next to the new SOUND switch. Say if you want only the one switch.
 3. **`GAME_SUBTITLE`**: kept as a second constant because the start screen draws it on its own plate. If the new name has no subtitle, it needs a small change there.
 4. **Android back button**: not handled yet (Capacitor step): open the pause menu, or close it.
 5. **A user-level skill `playables-rules`** exists in `C:\Users\roman\.claude\skills` (outside this project, so I left it). It also loads in this project; remove or ignore it.
 6. **Port**: 8080 was in use on this computer when I tested, so the preview server and the docs use 8090.
+
+# Round 2: Playables limits removed, continue only through a rewarded ad
+
+## Audit: what was there only because of Playables
+
+| Found | Status |
+| --- | --- |
+| `build.py`, `dist/`, `AUDIT.md` (the bundle build, its size check and the certification audit) | Already deleted in round 1. No size check, file-count check or build step is left in scripts or docs. |
+| Almost all game code in one file, `game.js` (218 KB, 5,300 lines) | **Removed**: split into 16 files, see below. |
+| Inlined assets (base64, data URLs) | None found. Sounds are separate WAV files, all art is drawn in code. |
+| A free continue (the Playables ad was replaced by a stub that always gave the reward) | **Removed**, see below. |
+| Load-time notes for slow networks (sound files measured on 3G) in `STYLE.md` | Reworded: the files are inside the app now. |
+| Sounds made in code, with files replacing only 5 effects and the engine; no music | Kept as it is: it works, and it is also the fallback until the files are decoded. Nothing stops adding more files or music now (planned). |
+| `SAVE.maxBytes` (500 KB) | Kept: a safety check for localStorage, not a platform limit. |
+| System fonts, no external URLs | Kept: Google Play needs everything bundled and offline too. |
+
+Nothing else was cut or simplified for size that I could find in the code or the docs.
+
+## Code structure
+
+`game.js` is now 16 files, loaded by plain `<script>` tags in this order: `layout.js`, `map.js`, `state.js`, `input.js`, `tanks.js`, `enemyai.js`, `pickups.js`, `bullets.js`, `explosions.js`, `render.js`, `hud.js`, `screens.js`, `gameover.js`, `controls.js`, `debug.js`, `game.js` (`CLAUDE.md` says what is in each). The biggest is `layout.js` (30 KB); no file in `www/` is over 50 KB (`materials.js` is 46 KB, one topic, left whole).
+
+The code was moved, not rewritten: every line of the old `game.js` is in exactly one new file, in the same relative order, so nothing behaves differently. Comments in the other files and in `STYLE.md` that said "in `game.js`" now name the right file. No build step, no libraries; all numbers are still in `config.js`.
+
+## Continue only through a rewarded ad
+
+- `www/ads.js`: `isRewardedReady()` and `showRewardedAd()` → `Promise<boolean>`, true ONLY when the reward was earned. With no native AdMob both answer false. A TODO block at the top lists the plan: `@capacitor-community/admob` v8, UMP consent first, Google's test ad IDs. Nothing was installed.
+- Game over screen: the continue button is "WATCH AD TO CONTINUE" (with the small ad badge). While no ad is ready it is switched off and reads "AD NOT AVAILABLE" / "No continue right now": taps and the keyboard skip it, and "START OVER" is the gold button. That is what the browser always shows.
+- The free continue is gone, including a hidden one: a lost run used to stay in the save, so closing the game on the game over screen and reopening it gave "Continue from level X" for free. Now a lost run is dropped from the save. After an earned continue the run is saved again, with the continue counted.
+- `REWARDED_CONTINUES_PER_RUN` is now 1 (was no limit).
+- Audio: while the ad is asked for and shown the game is paused and all sound is muted (`Sound.setAdPlaying`), and it comes back with the answer. This was already there and is unchanged.
+- Texts (`UI_TEXT.gameOver`): `watchAd`, `adNotAvailable`, `adNotAvailableSub` are new; "LOADING AD...", "NO REWARD THIS TIME".
+
+## Tested in the browser
+
+- Loads with all 30 scripts and no console errors; level 1 plays (driving, shooting, enemies spawning).
+- Game over on level 2, portrait and landscape: "AD NOT AVAILABLE" switched off, "START OVER" works by tap and by Enter. Level 1 still has only "START OVER".
+- With a pretend ad swapped in from the console (not in the code): answer false → "NO REWARD THIS TIME", no continue, sound back on; answer true → level restarts with 3 lives, the continue counted and saved; the next game over in that run has no continue button.
+- Not tested: a real ad (there is none yet), and a real phone. The landscape screen with the button switched off was checked by its positions and sizes, not by eye.
+
+## Please test / decide
+
+1. Until AdMob is in, nobody can continue after a game over (also in the Android app). That is what was asked for; just be aware when you play-test.
+2. Closing the app in the middle of a level still brings you back to the shop before that level (as before). It is not a continue, but it does let a player escape a level that is going badly. Say if you want that changed.

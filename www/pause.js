@@ -31,7 +31,7 @@ const settings = {
 //                   another tab): the "visibilitychange" event in
 //                   game.js, until it shows again
 //   gameOverScreen.waitingForAd  a rewarded ad is loading or playing
-//                   (game.js); ends when ads.js answers
+//                   (gameover.js); ends when ads.js answers
 // ---------------------------------------------------------------------
 const pauseMenu = {
   open: false,
@@ -66,7 +66,7 @@ function openPauseMenu(silent) {
 
 function closePauseMenu() {
   pauseMenu.open = false;
-  resetOverlayScroll(); // game.js
+  resetOverlayScroll(); // layout.js
 }
 
 function showPausePage(page) {
@@ -79,13 +79,13 @@ function showPausePage(page) {
 // EVERYTHING stops: the game loop (nothing is updated or drawn), input,
 // sound, the engine and the sound files' loading. A rewarded ad's answer
 // waits for the game loop, so it's handled once the app shows again,
-// and so is a size change (resize in game.js).
+// and so is a size change (resize in layout.js).
 function setSystemPause(on) {
   if (on === systemPaused) return;
   systemPaused = on;
   if (on) {
     stopLoop();
-    releaseForNewLayout(); // let go of every finger, drag and held key (game.js)
+    releaseForNewLayout(); // let go of every finger, drag and held key (layout.js)
   } else {
     if (resizeWaiting) resize(); // the window changed size meanwhile
     startLoop(); // does nothing if it's already running
@@ -104,12 +104,12 @@ function pauseButtonRect() {
   return controlZone.pause;
 }
 
-// Its place for a layout (computeLayout in game.js): 0.9 tiles big, in
+// Its place for a layout (computeLayout in layout.js): 0.9 tiles big, in
 // the playfield's top-right corner on screen (turned or not), in
 // landscape at least LANDSCAPE.pauseMinSize
 function placePauseButton(layout) {
   const s = layout.field.tileSize;
-  const rect = fieldRect(layout.field); // game.js
+  const rect = fieldRect(layout.field); // layout.js
   const size = layout.mode === "portrait" ? s * 0.9 : Math.max(s * 0.9, LANDSCAPE.pauseMinSize);
   return {
     x: rect.x + rect.width - size - s * 0.1,
@@ -143,7 +143,7 @@ const PAUSE_BUTTON_ALPHA = 0.85;
 
 function drawPauseButton() {
   const b = pauseButtonRect();
-  const hover = uiPointer.mouse && isInsidePauseButton(uiPointer.x, uiPointer.y); // game.js
+  const hover = uiPointer.mouse && isInsidePauseButton(uiPointer.x, uiPointer.y); // input.js
   const picture = cachedPicture("pauseButton" + b.size, b.size, b.size, (c) => paintPauseButton(c, b.size));
   ctx.globalAlpha = hover ? 1 : PAUSE_BUTTON_ALPHA;
   ctx.drawImage(picture, b.x, b.y, b.size, b.size);
@@ -264,7 +264,7 @@ function pauseMenuItems() {
   return items;
 }
 
-// Where the menu goes (overlayFrame in game.js), worked out in tiles
+// Where the menu goes (overlayFrame in layout.js), worked out in tiles
 // around the middle line: the buttons a tile below it, the panel 1.3
 // tiles above the first button (and its title plate 0.9 above that),
 // and below the last one the records and the badges (main page)
@@ -283,7 +283,7 @@ function pauseMenuLayout() {
   const { s, cx, cy } = pauseMenuFrame();
   const items = pauseMenuItems();
   const width = s * 9;
-  const height = buttonHeight(s * SMALLEST_MENU_BUTTON); // at least 48 px (game.js)
+  const height = buttonHeight(s * SMALLEST_MENU_BUTTON); // at least 48 px (layout.js)
   const gap = s * 0.4;
   const centerX = cx;
   const totalHeight = items.length * height + (items.length - 1) * gap;
@@ -297,7 +297,7 @@ function pauseMenuLayout() {
   }));
 }
 
-// Landscape: both pages in two columns (fitTwoColumnPanel in game.js)
+// Landscape: both pages in two columns (fitTwoColumnPanel in layout.js)
 function isTwoColumnPause() {
   return isTwoColumnLayout();
 }
@@ -377,7 +377,7 @@ function settingsPanelWidth() {
 }
 
 // ---------------------------------------------------------------------
-// Input (game.js passes events here while the menu is open)
+// Input (input.js passes events here while the menu is open)
 // ---------------------------------------------------------------------
 function pauseMenuTap(x, y) {
   const buttons = pauseMenuLayout();
@@ -461,7 +461,7 @@ function drawPauseMenu() {
   }
 
   // Keyboard players see which button Enter will press
-  const showSelection = showKeyboardFocus(); // game.js
+  const showSelection = showKeyboardFocus(); // input.js
   buttons.forEach((b, i) => {
     const primary = b.label === "RESUME" || b.label === "BACK";
     drawUiButton(b, b.label, primary, showSelection && i === pauseMenu.selected);
@@ -498,7 +498,7 @@ function drawPauseColumns() {
   }
 
   // Keyboard players see which button Enter will press
-  const showSelection = showKeyboardFocus(); // game.js
+  const showSelection = showKeyboardFocus(); // input.js
   m.buttons.forEach((b, i) => drawUiButton(b, b.label, b.label === "RESUME", showSelection && i === pauseMenu.selected));
 }
 
@@ -512,12 +512,12 @@ function drawSettingsColumns() {
   drawControlsPreview();
   drawFramedPanel(p.x, p.y, p.width, p.height);
   drawTitlePlate("SETTINGS", p.x + p.width / 2, p.y, p.titleSize, "#ffffff", p.width);
-  const showSelection = showKeyboardFocus(); // game.js
+  const showSelection = showKeyboardFocus(); // input.js
   m.buttons.forEach((b, i) => drawUiButton(b, b.label, b.label === "BACK", showSelection && i === pauseMenu.selected));
 }
 
 // The upgrade badges the player holds (the same pictures as under the
-// HUD, game.js), side by side under a divider at "top", each with its
+// HUD, hud.js), side by side under a divider at "top", each with its
 // name under it, so players can tell what each badge means. All names
 // use one font size, shrunk until the longest fits its slot.
 function drawPauseBadges(badges, left, right, top) {

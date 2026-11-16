@@ -8,14 +8,38 @@ Portrait: the playfield (13x21 tiles) on top, a control zone below (move control
 
 The game is everything in `www/` (this folder becomes Capacitor's `webDir`). Docs stay in the project root.
 
-- `www/index.html` – canvas, safe-area helper, phone CSS (no zoom, scroll, selection), loads the scripts in order
+- `www/index.html` – canvas, safe-area helper, phone CSS (no zoom, scroll, selection), loads the scripts in order (plain `<script>` tags; a new file must be added there)
 - `www/config.js` – `DEBUG`, `GAME_TITLE` / `GAME_SUBTITLE`, `UI_TEXT`, `SAVE`, and every tunable number
-- `www/game.js` – layout, input, player, enemies, bullets, HUD, game states, pause on `visibilitychange`, main loop
-- `www/save.js` – localStorage save, records, saved run, checkpoint, the start-up "Continue / New game" screen
+
+Data and shared drawing (loaded first):
+
+- `www/themes.js`, `materials.js`, `ui.js`, `enemies.js`, `levels.js`, `levelgen.js`, `powerups.js`, `shop.js`, `tutorial.js` – themes, tiles, menu parts, enemy types, levels, the level generator, power-ups, the shop and the level 1 hints
 - `www/pause.js` – settings, pause button and menu, system pause
+- `www/save.js` – localStorage save, records, saved run, checkpoint, the start-up "Continue / New game" screen
 - `www/audio.js` – Web Audio sound effects and engine sound (made in code, some from `sounds/`)
-- `www/ads.js` – `showRewardedAd()`, the only place for an ad SDK (a stub for now)
-- `www/themes.js`, `materials.js`, `ui.js`, `enemies.js`, `levels.js`, `levelgen.js`, `powerups.js`, `shop.js`, `tutorial.js` – data and drawing for themes, tiles, menus, enemies, levels, the level generator, power-ups, the shop and the level 1 hints
+- `www/ads.js` – `isRewardedReady()` and `showRewardedAd()`, the only place for an ad SDK (no SDK yet: both answer false)
+
+The game itself (loaded in this order):
+
+- `www/layout.js` – canvas, fixed places on the map, portrait / landscape layout, safe areas, resize, overlay and two-column panel frames
+- `www/map.js` – the tile map, current level (hand-made, generated, endless), the DEBUG level check
+- `www/state.js` – tanks and counters, `GAME_STATE`, starting / finishing / losing levels and runs
+- `www/input.js` – keyboard, joystick / D-pad, fire button, pointer events
+- `www/tanks.js` – moving and colliding (all tanks), the player
+- `www/enemyai.js` – enemy spawning, driving, shooting
+- `www/pickups.js` – coins, the power-up on the field, timed effects
+- `www/bullets.js` – bullets and what they hit
+- `www/explosions.js` – sparks, blasts, scorch marks (update and drawing)
+- `www/render.js` – `draw()`, `cachedPicture()`, shadows, tiles, tanks, everything on the playfield
+- `www/hud.js` – the HUD and upgrade badges
+- `www/screens.js` – level summary, "LEVEL X" and world intros
+- `www/gameover.js` – game over and "CAMPAIGN COMPLETE" screens, the rewarded continue
+- `www/controls.js` – drawing the control panel, joystick, D-pad and fire button
+- `www/debug.js` – debug keys and tags, layout self-test
+- `www/game.js` – `update()`, the game loop, pause on `visibilitychange`, `init()` (loaded last)
+
+Other:
+
 - `www/sounds/` – WAV files; `www/CREDITS.md` – where every non-code asset came from
 - `STYLE.md` – the visual style, plus a long reference on how each system works (layout, levels, generator, economy, audio, saving, the continue). **Read it only when doing art/UI work or when you need the details of one of those systems.**
 - `CHANGES.md` – what changed in the move to Google Play, and what to test or decide
@@ -27,7 +51,11 @@ The game is everything in `www/` (this folder becomes Capacitor's `webDir`). Doc
 - `DEBUG` (top of `config.js`) is `false` by default and for every release. Debug keys, tags, logs, warnings, the level check and the layout self-test all check `DEBUG`: with it off, nothing is logged. Any new debug key or log must check it too.
 - The game's name is `GAME_TITLE` (+ `GAME_SUBTITLE`) in `config.js`; the page title is set from them at start-up. Don't write the name anywhere else in code.
 - Saving: one JSON string in `localStorage` under `SAVE.key` (`tankrush_save_v1`), always in try/catch; a missing or broken save starts the game fresh. The data has its own `version` (`SAVE_VERSION` in `save.js`); when the format changes, raise it and keep reading older versions. Save only on events (`writeSave()`), never per frame.
-- Ads: game code never talks to an ad SDK. It calls `showRewardedAd()` in `ads.js`, which returns a Promise: `true` = reward earned, `false` = no reward, rejected = no ad. For now it resolves `true` at once. It is called only from the game over screen's "CONTINUE" button; the continue logic and limit (`REWARDED_CONTINUES_PER_RUN`, `null` = no limit) are in `game.js`.
+- Ads: game code never talks to an ad SDK, only to `ads.js`: `isRewardedReady()` (is an ad loaded) and `showRewardedAd()` → `Promise<boolean>`, `true` ONLY when the reward was earned. With no native AdMob (the browser, and for now everywhere) both answer false.
+- Continue: only through a rewarded ad. The game over screen's "WATCH AD TO CONTINUE" button is the one caller; with no ad ready it is switched off and reads "AD NOT AVAILABLE". There is no free continue, and a lost run is not kept in the save. The logic is in `gameover.js`, the limit is `REWARDED_CONTINUES_PER_RUN` in `config.js` (default 1, `null` = no limit). The game is paused and muted while an ad shows (`Sound.setAdPlaying`).
+- Files: one responsibility per file, plain `<script>` tags in `index.html`, no build step. Keep files under about 50 KB; split by responsibility when one grows past that.
+- Size: there is no bundle or file-count limit any more, but keep the app small (target under about 30 MB, Google Play's hard limit is 200 MB). `www/` is about 1.3 MB.
+- No Android permissions are needed by the game (ads will add the internet permission through the AdMob plugin).
 - Pause: when the page is hidden (`visibilitychange`) the game stops completely, mutes, saves, and opens the pause menu if a level is running. It never resumes by itself.
 - Sound: starts only after the first tap. Settings has SOUND (overall), SOUND EFFECTS and ENGINE SOUND, all saved. There is no music yet.
 - Offline: no external URLs of any kind (scripts, fonts, images, links). Fonts are system fonts (`sans-serif`).
@@ -55,5 +83,5 @@ Saves are per origin, so the phone and the computer have separate saves. To test
 1. Capacitor 8: `npm init`, add `@capacitor/core`, `@capacitor/cli`, `@capacitor/android`; `npx cap init` with `webDir: "www"`; `npx cap add android`. App name, id, icon and splash screen live in the Capacitor/Android project.
 2. On a real device, check the safe areas (Android 15+ draws edge-to-edge), pause when the app goes to the background, sound after the first tap, and the Android back button (not handled yet).
 3. Signing: create an upload keystore (keep it out of git), build a release `.aab` in Android Studio, enrol in Play App Signing.
-4. AdMob later: add a Capacitor AdMob plugin and call it from `showRewardedAd()` in `ads.js` only; then give the "CONTINUE" button its ad wording (`UI_TEXT.gameOver`, `adBadge` in `gameOverButtonItems()`), and decide the continue limit.
+4. AdMob: `@capacitor-community/admob` v8 with UMP consent and Google's test ad IDs, used in `ads.js` only (the TODO block at its top has the steps). Until then nobody can continue after a game over.
 5. Planned in the game itself: background music (with its own MUSIC setting), more visual polish (see "Still to do" in `STYLE.md`).

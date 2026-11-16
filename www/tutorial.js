@@ -114,7 +114,7 @@ function updateToast(deltaSeconds) {
 function drawTutorial() {
   if (!toast) return;
   const s = field.tileSize;
-  const rect = fieldRect(); // game.js
+  const rect = fieldRect(); // layout.js
   const cx = rect.x + rect.width / 2;
 
   // Fade in quickly, stay, fade out at the end
