@@ -185,7 +185,10 @@ function updatePlayer(deltaSeconds) {
   // simply try again next frame.
   if (!player.alive) {
     player.respawnTimer -= deltaSeconds;
-    if (player.respawnTimer <= 0) spawnPlayer();
+    // Back on the map: a gold ring where the tank appears (explosions.js)
+    if (player.respawnTimer <= 0 && spawnPlayer()) {
+      addRing(player.x + 0.5, player.y + 0.5, FEEDBACK.respawnColor);
+    }
     return;
   }
 
@@ -268,6 +271,8 @@ function playerFire() {
 function breakArmor() {
   upgrades.hasArmor = false;
   Sound.play("armorBreak");
+  addShake("armor"); // feedback.js
+  vibrate("armor");
   explosions.push({
     x: player.x + 0.5, y: player.y + 0.5, size: 1, age: 0,
     duration: ARMOR_BREAK_TIME, kind: "armorBreak",
@@ -277,6 +282,8 @@ function breakArmor() {
 function destroyPlayer() {
   addTankBlast(player);
   Sound.play("explosion");
+  addShake("player"); // feedback.js
+  vibrate("player");
   player.alive = false;
   lives -= 1;
   levelStats.livesLost += 1;

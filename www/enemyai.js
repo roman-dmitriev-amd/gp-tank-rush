@@ -39,6 +39,28 @@ function randomEnemyDirection(enemy, avoid) {
   return choices[0];
 }
 
+// The spawn point the next enemy will use: the next one in line, or the
+// one after it if a tank is standing there (-1: all are blocked)
+function freeSpawnPointIndex() {
+  for (let i = 0; i < SPAWN_POINTS.length; i++) {
+    const index = (nextSpawnPoint + i) % SPAWN_POINTS.length;
+    const point = SPAWN_POINTS[index];
+    if (!allTanks().some((t) => tanksOverlap(t.x, t.y, point.x, point.y))) return index;
+  }
+  return -1;
+}
+
+// Where to show the spawn warning (feedback.js) right now: the point the
+// next enemy will use, during the last FEEDBACK.spawnWarning seconds of
+// the spawn delay (the delay only runs while there is room on the field,
+// so the star never shows early). null = no enemy is about to appear.
+function nextSpawnWarning() {
+  if (enemiesSpawned >= currentLevel().enemies.length) return null;
+  if (spawnTimer > FEEDBACK.spawnWarning) return null;
+  const index = freeSpawnPointIndex();
+  return index < 0 ? null : SPAWN_POINTS[index];
+}
+
 // Spawn a new enemy now and then, if there's room
 function updateSpawning(deltaSeconds) {
   const levelEnemies = currentLevel().enemies;
@@ -48,13 +70,11 @@ function updateSpawning(deltaSeconds) {
   spawnTimer -= deltaSeconds;
   if (spawnTimer > 0) return;
 
-  // Try the spawn points in turn, starting with the next one in line.
-  // Skip a point if a tank is standing on it.
-  for (let i = 0; i < SPAWN_POINTS.length; i++) {
-    const index = (nextSpawnPoint + i) % SPAWN_POINTS.length;
+  // The next spawn point in line that has no tank standing on it
+  {
+    const index = freeSpawnPointIndex();
+    if (index < 0) return; // every spawn point is blocked: try again next frame
     const point = SPAWN_POINTS[index];
-    const blocked = allTanks().some((t) => tanksOverlap(t.x, t.y, point.x, point.y));
-    if (blocked) continue;
 
     // The next enemy in the level's list decides the type
     const type = ENEMY_TYPES[levelEnemies[enemiesSpawned]] || ENEMY_TYPES.basic;
@@ -73,9 +93,7 @@ function updateSpawning(deltaSeconds) {
     enemiesSpawned += 1;
     nextSpawnPoint = (index + 1) % SPAWN_POINTS.length;
     spawnTimer = ENEMY_SPAWN_DELAY;
-    return;
   }
-  // Every spawn point was blocked: try again next frame
 }
 
 // Simple AI: drive, turn now and then (or when stuck), shoot at random
@@ -130,6 +148,8 @@ function hitEnemy(enemy) {
 function destroyEnemy(enemy) {
   addTankBlast(enemy);
   Sound.play("explosion");
+  addShake("enemy"); // feedback.js
+  addFloatingText(enemy.x + 0.5, enemy.y + 0.5, "+" + enemy.type.points, FEEDBACK.scoreColor);
   enemies = enemies.filter((e) => e !== enemy);
   enemiesDestroyed += 1;
   levelStats.enemiesDestroyed += 1;

@@ -33,9 +33,16 @@ function draw() {
   drawMargins();
   updatePageBackground();
 
+  // Screen shake (feedback.js): everything on the playfield is drawn a
+  // few pixels off, down to the explosions; the HUD and controls are not
+  const shakeBy = shakeOffset();
+  ctx.save();
+  ctx.translate(shakeBy.x, shakeBy.y);
+
   drawField();        // ground, then "ground" and "solid" tiles
   drawCoins();
   drawPowerUp();
+  drawSpawnWarning(); // where the next enemy is about to appear (feedback.js)
 
   // Tanks: nothing of them is drawn under forest ("overlay" tiles)...
   ctx.save();
@@ -61,6 +68,7 @@ function draw() {
   ctx.restore();
 
   drawExplosions();
+  ctx.restore(); // end of the shaken part
   drawControlPanel();
   drawHud();
 
@@ -401,20 +409,47 @@ function drawEffectTimers(types, centerX, y, size) {
   }
 }
 
+// Bullets: a short bright streak with a dark edge, pointing the way it
+// flies, and a faint tail behind it (never reaching back past the
+// cannon it left). Only the look: a bullet is still a point for hits.
+// Sizes are in FEEDBACK (config.js).
 function drawBullets() {
   const s = field.tileSize;
+  const look = FEEDBACK;
+  ctx.lineCap = "round";
   for (const bullet of bullets) {
-    const at = mapToScreen(bullet.x, bullet.y);
-    ctx.beginPath();
-    ctx.arc(at.x, at.y, s * 0.1, 0, Math.PI * 2);
-    // Player bullets are white, enemy bullets are a bit red
+    const step = DIRECTIONS[bullet.dir];
+    const flown = Math.abs(bullet.x - bullet.fromX) + Math.abs(bullet.y - bullet.fromY);
+    const head = mapToScreen(bullet.x, bullet.y);
+    const back = Math.min(look.bulletLength, flown);
+    const end = mapToScreen(bullet.x - step.x * back, bullet.y - step.y * back);
+    const tailLength = Math.min(look.bulletTail, flown);
+    const tail = mapToScreen(bullet.x - step.x * tailLength, bullet.y - step.y * tailLength);
+
     // Player bullets are white (orange when armor-piercing), enemy
     // bullets are a bit red
-    if (bullet.owner !== player) ctx.fillStyle = "#ffb3a6";
-    else ctx.fillStyle = bullet.damage >= ARMOR_PIERCING_DAMAGE ? "#ff9a2e" : "#ffffff";
-    ctx.fill();
-    ctx.lineWidth = 1;
+    let color = "#ffb3a6";
+    if (bullet.owner === player) color = bullet.damage >= ARMOR_PIERCING_DAMAGE ? "#ff9a2e" : "#ffffff";
+
+    // The tail, then the streak: its dark edge first, the color over it
+    ctx.strokeStyle = color;
+    ctx.globalAlpha = look.bulletTailAlpha;
+    ctx.lineWidth = s * look.bulletWidth * 0.6;
+    line(tail, end);
+    ctx.globalAlpha = 1;
     ctx.strokeStyle = "#000000";
+    ctx.lineWidth = s * look.bulletWidth + 2;
+    line(end, head);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = s * look.bulletWidth;
+    line(end, head);
+  }
+  ctx.lineCap = "butt";
+
+  function line(from, to) {
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.lineTo(to.x, to.y);
     ctx.stroke();
   }
 }
@@ -445,7 +480,11 @@ function drawTank(tank, lookColors, place) {
   const key = "tank" + look.width + "," + look.turret + "," + look.barrel +
     colors.body + colors.track + colors.turret + colors.outline + facing + (place ? s : "");
   const picture = cachedPicture(key, s, s, (c) => paintTank(c, s, look, colors, facing));
-  ctx.drawImage(picture, at.x, at.y, s, s);
+  // Just after firing the picture sits a little back (recoil, feedback.js);
+  // the shadow and the tank itself stay where they are
+  const recoil = place ? 0 : tankRecoil(tank) * s;
+  const step = DIRECTIONS[facing];
+  ctx.drawImage(picture, at.x - step.x * recoil, at.y - step.y * recoil, s, s);
 }
 
 // A point given for a tank pointing up (around its center), turned to

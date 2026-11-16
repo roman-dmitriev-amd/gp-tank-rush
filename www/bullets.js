@@ -25,7 +25,12 @@ function fireBullet(tank, speed) {
     owner: tank,
     dead: false,
   };
+  // Where it started, so its tail never reaches back behind the cannon
+  bullet.fromX = bullet.x;
+  bullet.fromY = bullet.y;
   bullets.push(bullet);
+  addMuzzleFlash(bullet.x, bullet.y); // explosions.js
+  noteTankFired(tank);                // recoil (feedback.js)
   Sound.play(tank === player ? "playerShot" : "enemyShot");
 }
 
@@ -81,6 +86,7 @@ function checkBulletHits(bullet) {
     for (const enemy of enemies) {
       if (pointInTank(bullet.x, bullet.y, enemy)) {
         removeBullet(bullet);
+        addSpark(bullet.x, bullet.y);
         hitEnemy(enemy);
         return;
       }
@@ -98,6 +104,7 @@ function checkBulletHits(bullet) {
       else destroyPlayer();
     } else {
       Sound.play("metalHit"); // the shield (or respawn blink) blocked it
+      addSpark(bullet.x, bullet.y);
     }
   }
 }
@@ -116,6 +123,7 @@ function checkBulletsHitEachOther() {
       if (Math.abs(one.x - two.x) < 0.3 && Math.abs(one.y - two.y) < 0.3) {
         removeBullet(one);
         removeBullet(two);
+        addSpark((one.x + two.x) / 2, (one.y + two.y) / 2);
       }
     }
   }
@@ -177,8 +185,15 @@ function hitTile(col, row, bullet) {
   // brick, concrete or metal (materials.js); a brick that breaks has its own sound
   Sound.play((destroyed && material.destroySound) || material.hitSound || "metalHit");
   if (destroyed) {
+    // Rubble in the wall's own colors (the base wall has its own)
+    const colors = cell.baseWall && material.id === "brick" ? currentTheme().baseWall : tileColors(material.id);
+    const second = colors.mortar || colors.seam || colors.shine || colors.fill;
+    addRubble(col + 0.5, row + 0.5,
+              [colors.fill, second, mixColors(colors.fill, colors.outline, 0.45)],
+              mixColors(colors.fill, second, 0.5));
     setTile(col, row, "empty");
-    addExplosion(col + 0.5, row + 0.5);
+  } else {
+    addSpark(bullet.x, bullet.y); // chipped, still standing
   }
   return true;
 }
@@ -191,5 +206,7 @@ function destroyBase(col, row) {
   const gold = BASE_LOOK.gold, plate = BASE_LOOK.plate;
   addBlast(col + 0.5, row + 0.5, [gold[1], plate[0], plate[1], gold[2]], BLAST_LOOKS.baseSize);
   Sound.play("baseDestroyed");
+  addShake("base");  // feedback.js
+  vibrate("base");
   loseGame();
 }

@@ -29,7 +29,8 @@ The game itself (loaded in this order):
 - `www/enemyai.js` – enemy spawning, driving, shooting
 - `www/pickups.js` – coins, the power-up on the field, timed effects
 - `www/bullets.js` – bullets and what they hit
-- `www/explosions.js` – sparks, blasts, scorch marks (update and drawing)
+- `www/explosions.js` – sparks, blasts, wall rubble, muzzle flash, rings, floating numbers, scorch marks (update and drawing)
+- `www/feedback.js` – screen shake, vibration, recoil, the spawn warning star (numbers in `FEEDBACK`, `config.js`)
 - `www/render.js` – `draw()`, `cachedPicture()`, shadows, tiles, tanks, everything on the playfield
 - `www/hud.js` – the HUD and upgrade badges
 - `www/screens.js` – level summary, "LEVEL X" and world intros

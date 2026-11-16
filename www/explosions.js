@@ -7,18 +7,61 @@
 // ---------------------------------------------------------------------
 // Explosions (just for looks)
 // ---------------------------------------------------------------------
-// Each one: { x, y, size, age, duration, spark }, plus a "kind" for
-// the armor break and tank blasts (addBlast).
-// A "spark" is the tiny flash when a bullet bounces off a wall.
+// Each one: { x, y, size, age, duration } and either "spark" or a
+// "kind": "blast" (a tank or the base, addBlast), "rubble" (a wall
+// tile), "armorBreak", "muzzle", "ring" or "text".
+// A "spark" is the tiny flash when a bullet hits something.
 const explosions = [];
 
-// size 1 = brick explosion, bigger numbers = bigger boom
-function addExplosion(x, y, size = 1) {
-  explosions.push({ x, y, size, age: 0, duration: EXPLOSION_TIME, spark: false });
+// "color" and "size" are optional (a coin's sparkle is gold and bigger)
+function addSpark(x, y, color, size = 0.4) {
+  explosions.push({ x, y, size, age: 0, duration: SPARK_TIME, spark: true, color });
 }
 
-function addSpark(x, y) {
-  explosions.push({ x, y, size: 0.4, age: 0, duration: SPARK_TIME, spark: true });
+// The flash at the tip of a cannon that just fired
+function addMuzzleFlash(x, y) {
+  explosions.push({ x, y, size: 1, age: 0, duration: FEEDBACK.muzzleTime, kind: "muzzle" });
+}
+
+// A ring that grows and fades (the player coming back, a power-up taken)
+function addRing(x, y, color) {
+  explosions.push({ x, y, size: 1, age: 0, duration: FEEDBACK.ringTime, kind: "ring", color });
+}
+
+// A short text that floats up and fades ("+8" from a coin, a kill's score)
+function addFloatingText(x, y, text, color) {
+  explosions.push({ x, y, size: 1, age: 0, duration: FEEDBACK.textTime, kind: "text", text, color });
+}
+
+// A wall tile breaking: a puff of dust in the "dust" color and a few
+// pieces in "pieceColors" thrown a short way. Paths are picked once
+// with seeded random, like a blast's (drawRubble works them out).
+function addRubble(x, y, pieceColors, dust) {
+  const looks = FEEDBACK;
+  blastCount += 1;
+  const random = makeRandom(blastCount * 7919);
+  const between = (min, max) => min + random() * (max - min);
+  const boom = { x, y, size: 1, age: 0, duration: looks.rubbleTime, kind: "rubble", dust, puffs: [], debris: [] };
+  for (let i = 0; i < looks.rubbleDust; i++) {
+    boom.puffs.push({
+      angle: between(0, Math.PI * 2),
+      distance: between(0.05, 0.3),
+      endRadius: between(0.5, 0.7),
+    });
+  }
+  for (let i = 0; i < looks.rubblePieces; i++) {
+    boom.debris.push({
+      angle: (i / looks.rubblePieces) * Math.PI * 2 + between(0, 0.8),
+      speed: between(1.4, 2.8),
+      flight: between(0.25, 0.42),
+      turn: between(0, Math.PI),
+      spin: between(-12, 12),
+      width: between(0.09, 0.15),
+      height: between(0.06, 0.1),
+      color: pieceColors[i % pieceColors.length],
+    });
+  }
+  explosions.push(boom);
 }
 
 // Scorch marks left on the ground by blasts: { x, y, size, age, variant }
@@ -117,9 +160,9 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-// Each explosion is a few circles that grow and fade out (tank and base
-// blasts have their own look, drawBlast). A spark is a small burst of
-// short bright lines. Nothing is drawn outside the playfield.
+// Every effect in "explosions", each kind with its own look (tank and
+// base blasts: drawBlast, wall rubble: drawRubble). A spark is a small
+// burst of short bright lines. Nothing is drawn outside the playfield.
 function drawExplosions() {
   const s = field.tileSize;
   const rect = fieldRect();
@@ -136,7 +179,35 @@ function drawExplosions() {
     const { x: cx, y: cy } = mapToScreen(boom.x, boom.y);
     const size = s * boom.size;
 
+    if (boom.kind === "rubble") {
+      drawRubble(boom, cx, cy);
+      continue;
+    }
+    if (boom.kind === "text") {
+      drawFloatingText(boom, cx, cy, rect);
+      continue;
+    }
+    // A muzzle flash: a warm glow with a white middle, added as light
+    if (boom.kind === "muzzle") {
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = "lighter";
+      drawGlow(cx, cy, FEEDBACK.muzzleColor, FEEDBACK.muzzleSize, 1 - progress);
+      drawGlow(cx, cy, "#ffffff", FEEDBACK.muzzleSize * 0.45, 1 - progress);
+      ctx.globalCompositeOperation = "source-over";
+      continue;
+    }
+
     ctx.globalAlpha = 1 - progress; // fade out
+
+    // A ring that grows fast, thins and fades
+    if (boom.kind === "ring") {
+      ctx.strokeStyle = boom.color;
+      ctx.lineWidth = Math.max(1, s * 0.1 * (1 - progress));
+      ctx.beginPath();
+      ctx.arc(cx, cy, s * (0.35 + (FEEDBACK.ringSize - 0.35) * easeOut(progress)), 0, Math.PI * 2);
+      ctx.stroke();
+      continue;
+    }
 
     // Armor breaking: pieces of the silver ring flying outward, and
     // silver sparks flying out faster between them
@@ -165,7 +236,7 @@ function drawExplosions() {
     }
 
     if (boom.spark) {
-      ctx.strokeStyle = "#fff6b0";
+      ctx.strokeStyle = boom.color || "#fff6b0";
       ctx.lineWidth = Math.max(1, s * 0.05);
       ctx.beginPath();
       for (let i = 0; i < 6; i++) {
@@ -176,23 +247,49 @@ function drawExplosions() {
         ctx.lineTo(cx + Math.cos(angle) * outer, cy + Math.sin(angle) * outer);
       }
       ctx.stroke();
-      continue;
     }
-
-    ctx.fillStyle = "#ff8a1f";      // orange outer ring
-    ctx.beginPath();
-    ctx.arc(cx, cy, size * (0.25 + progress * 0.45), 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#ffe066";      // yellow middle
-    ctx.beginPath();
-    ctx.arc(cx, cy, size * (0.15 + progress * 0.25), 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#ffffff";      // white hot center
-    ctx.beginPath();
-    ctx.arc(cx, cy, size * 0.1 * (1 - progress), 0, Math.PI * 2);
-    ctx.fill();
   }
   ctx.restore(); // also puts globalAlpha back
+}
+
+// A wall tile's rubble (addRubble): dust clouds (one cached picture per
+// dust color) that grow and fade, and the pieces flying out over them
+function drawRubble(boom, cx, cy) {
+  const s = field.tileSize;
+  const p = boom.age / boom.duration;
+  const grow = easeOut(p);
+  const dust = cachedPicture("dust" + boom.dust, s, s, (c) => paintPuff(c, s, boom.dust, boom.dust, boom.dust));
+  ctx.globalAlpha = FEEDBACK.rubbleDustAlpha * (1 - p);
+  for (const puff of boom.puffs) {
+    const x = cx + Math.cos(puff.angle) * puff.distance * grow * s;
+    const y = cy + Math.sin(puff.angle) * puff.distance * grow * s;
+    const radius = (0.25 + (puff.endRadius - 0.25) * grow) * s;
+    ctx.drawImage(dust, x - radius, y - radius, radius * 2, radius * 2);
+  }
+  drawBlastPieces(boom, cx, cy, s);
+  ctx.globalAlpha = 1;
+}
+
+// A floating text (addFloatingText): it rises, slowing down, and fades
+// out at the end. Never turned, and kept inside the playfield "rect".
+function drawFloatingText(boom, cx, cy, rect) {
+  const s = field.tileSize;
+  const p = boom.age / boom.duration;
+  const size = Math.max(11, Math.round(s * FEEDBACK.textSize));
+  ctx.font = "bold " + size + "px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const half = ctx.measureText(boom.text).width / 2 + 2;
+  const x = clamp(cx, rect.x + half, rect.x + rect.width - half);
+  const y = Math.max(rect.y + size, cy - s * (0.3 + FEEDBACK.textRise * easeOut(p)));
+  ctx.globalAlpha = p < 0.6 ? 1 : (1 - p) / 0.4;
+  ctx.lineWidth = Math.max(2, size * 0.18);
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = "#000000";
+  ctx.strokeText(boom.text, x, y);
+  ctx.fillStyle = boom.color;
+  ctx.fillText(boom.text, x, y);
+  ctx.globalAlpha = 1;
 }
 
 // How far something thrown at "speed" (tiles per second) has gone after
@@ -308,10 +405,11 @@ function drawBlast(boom) {
 // The blast's pieces: thrown up and out of the fireball, spinning, then
 // they land and lie still. Higher up = bigger, with the shadow further
 // to the bottom-right. They fade out over the blast's last third.
+// (Also a broken wall's pieces, drawRubble.)
 function drawBlastPieces(boom, cx, cy, unit) {
   const t = boom.age;
-  const fadeStart = BLAST_LOOKS.time * 0.65;
-  const alpha = t < fadeStart ? 1 : (BLAST_LOOKS.time - t) / (BLAST_LOOKS.time - fadeStart);
+  const fadeStart = boom.duration * 0.65;
+  const alpha = t < fadeStart ? 1 : Math.max(0, (boom.duration - t) / (boom.duration - fadeStart));
   ctx.lineWidth = 1;
   ctx.strokeStyle = "#000000";
   for (const piece of boom.debris) {

@@ -22,6 +22,7 @@ const settings = {
   engineSound: true,      // the player tank's engine sound on/off
   leftHanded: false,      // false: movement left, FIRE right. true: swapped
   controlType: "drag",    // "drag" (floating joystick) or "cross" (D-pad)
+  vibration: true,        // the phone vibrates on big hits (feedback.js)
 };
 
 // ---------------------------------------------------------------------
@@ -248,6 +249,14 @@ function pauseMenuItems() {
         label: "MOVE CONTROL: " + (settings.controlType === "cross" ? "CROSS" : "DRAG"),
         action: () => {
           settings.controlType = settings.controlType === "cross" ? "drag" : "cross";
+          writeSave();
+        },
+      },
+      {
+        label: "VIBRATION: " + (settings.vibration ? "ON" : "OFF"),
+        action: () => {
+          settings.vibration = !settings.vibration;
+          vibrate("armor"); // a short buzz to show it is on (feedback.js)
           writeSave();
         },
       },

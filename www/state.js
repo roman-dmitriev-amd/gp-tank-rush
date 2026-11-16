@@ -192,13 +192,14 @@ function startLevel(index) {
   enemies = [];
   enemiesSpawned = 0;
   enemiesDestroyed = 0;
-  spawnTimer = 0;
+  spawnTimer = FEEDBACK.spawnWarning; // the first enemy gets its warning too
   nextSpawnPoint = 0;
   logEnemySpeeds();
 
   bullets = [];
   explosions.length = 0;
   scorchMarks.length = 0;
+  stopShake(); // feedback.js
 
   spawnPlayer();
 

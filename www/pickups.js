@@ -26,6 +26,9 @@ function updateCoins(deltaSeconds) {
         gold += coin.gold;
         levelStats.coinGold += coin.gold;
         Sound.play("coin");
+        // A gold sparkle and "+8" floating up (explosions.js)
+        addSpark(coin.x + 0.5, coin.y + 0.5, FEEDBACK.goldColor, 0.7);
+        addFloatingText(coin.x + 0.5, coin.y + 0.5, "+" + coin.gold, FEEDBACK.goldColor);
         coin.age = Infinity; // mark as gone
       }
     }
@@ -109,6 +112,8 @@ function updatePowerUp(deltaSeconds) {
       Math.abs(powerUp.col - player.x) < 0.7 &&
       Math.abs(powerUp.row - player.y) < 0.7) {
     const type = powerUp.type;
+    // A ring in the power-up's color around the player (explosions.js)
+    addRing(player.x + 0.5, player.y + 0.5, POWERUP_TYPES[type].color);
     powerUp = null;
     Sound.play("powerUp", 0, type); // each type ends on its own note
     activatePowerUp(type);

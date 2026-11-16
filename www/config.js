@@ -94,7 +94,6 @@ const PLAYER_BULLET_SPEED = 10;   // tiles per second (enemy bullet
                                   // speeds are in enemies.js)
 const BULLET_DAMAGE = 1;          // damage of a normal bullet
 const ARMOR_PIERCING_DAMAGE = 2;  // damage with the armor-piercing upgrade
-const EXPLOSION_TIME = 0.35;      // how long an explosion lasts, seconds
 const SPARK_TIME = 0.15;          // how long a "bounced off" spark lasts
 const ARMOR_BREAK_TIME = 0.5;     // how long the armor-break effect lasts
 
@@ -321,6 +320,67 @@ const BLAST_LOOKS = {
   glow: "#ff8a2a",
   spark: "#ffd36b",
   ring: "#fff1c0",
+};
+
+// =====================================================================
+//  Feedback (feedback.js, explosions.js): the small effects around the
+//  action. Only looks and vibration: nothing here changes gameplay,
+//  except spawnWarning, which also delays a level's first enemy by that
+//  long. Sizes are in tiles, times in seconds.
+// =====================================================================
+
+const FEEDBACK = {
+  // Firing
+  muzzleTime: 0.08,       // how long the flash at the cannon tip shows
+  muzzleSize: 1.1,        // its width
+  muzzleColor: "#ffd98a",
+  recoilTime: 0.12,       // the tank's picture jumps back and returns over this long...
+  recoilDistance: 0.07,   // ...this far (the tank itself doesn't move)
+  bulletLength: 0.26,     // the bullet's bright streak
+  bulletWidth: 0.13,
+  bulletTail: 0.55,       // the faint tail behind it
+  bulletTailAlpha: 0.35,
+
+  // Screen shake: only the playfield moves, never the HUD or controls.
+  // [how far, for how long]; a stronger shake replaces a weaker one.
+  shake: {
+    enemy: [0.04, 0.16],
+    armor: [0.06, 0.2],
+    player: [0.12, 0.35],
+    base: [0.2, 0.6],
+  },
+  shakeSpeed: 75,         // how fast it rattles
+
+  // Vibration in milliseconds (a list = buzz, pause, buzz); VIBRATION setting
+  vibration: {
+    armor: 40,
+    player: 90,
+    base: [140, 60, 220],
+  },
+
+  // The blinking star on a spawn point just before an enemy appears there
+  spawnWarning: 0.8,      // it shows during the last 0.8 seconds of the spawn delay
+  spawnMarkSize: 0.85,
+  spawnMarkColors: ["#ffffff", "#ffd36b", "#c0412e"], // middle, star, outline
+  spawnBlinkSpeed: 14,
+
+  // Rings (the player coming back, a power-up picked up)
+  ringTime: 0.45,
+  ringSize: 1.3,          // radius it grows to
+  respawnColor: "#ffe27a",
+
+  // Floating numbers ("+8" gold from a coin, score for a kill)
+  textTime: 0.8,
+  textRise: 0.7,          // how far it floats up
+  textSize: 0.42,
+  goldColor: "#f5c542",
+  scoreColor: "#ffffff",
+
+  // A wall tile breaking: a dust puff and pieces in the wall's colors
+  rubbleTime: 0.55,
+  rubblePieces: 6,
+  rubbleDust: 3,
+  rubbleDustAlpha: 0.55,
 };
 
 // =====================================================================

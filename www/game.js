@@ -35,6 +35,7 @@ function update(deltaSeconds) {
       updatePowerUp(deltaSeconds);
       updateEffects(deltaSeconds);
       updateExplosions(deltaSeconds);
+      updateShake(deltaSeconds);     // feedback.js
       updateLevelEnd(deltaSeconds);
       updateTutorial(deltaSeconds);  // level 1 hints
       break;
@@ -49,6 +50,7 @@ function update(deltaSeconds) {
       // Everything is frozen; only let the last explosions finish (and
       // the game over screen's ad message run out)
       updateExplosions(deltaSeconds);
+      updateShake(deltaSeconds);
       gameOverScreen.messageTime -= deltaSeconds;
       break;
   }
