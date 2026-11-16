@@ -27,7 +27,7 @@
 //  run.level is the level the shop leads to (1-based). checkpoint is
 //  how the run stood when the current level started (seed only for
 //  generated levels), for the retries on the game over screen
-//  (game.js). Change SAVE_VERSION when the format changes, and keep
+//  (state.js). Change SAVE_VERSION when the format changes, and keep
 //  reading the older versions.
 // =====================================================================
 
@@ -116,7 +116,7 @@ function writeSave() {
 
 // The run as it is in the shop: the next level, gold, lives, score,
 // everything bought (permanent tiers, held armor and base steel) and the
-// rewarded continues used (game.js)
+// rewarded continues used (state.js)
 function rememberRun() {
   progress.run = {
     level: levelIndex + 2,
@@ -131,7 +131,7 @@ function rememberRun() {
 // A level starts (before its start effects, so a pending base steel is
 // still held): remember the level, gold, score and upgrades, and the
 // seed of a generated level, for the rewarded continue on the game over
-// screen (game.js). Replaced when the next level starts.
+// screen (gameover.js). Replaced when the next level starts.
 function takeCheckpoint() {
   progress.checkpoint = {
     level: levelIndex + 1,
@@ -143,11 +143,11 @@ function takeCheckpoint() {
   if (seed !== undefined) progress.checkpoint.seed = seed;
 }
 
-// The run saved on game over while the rewarded continue is offered
-// (loseGame in game.js): the lost level's checkpoint with
-// START_LIVES_AFTER_CONTINUE lives, so closing the game there and
-// opening it again offers "Continue from level X" (the shop before that
-// level). That counts as one of the continues.
+// The run saved after a rewarded continue (continueFromCheckpoint in
+// gameover.js): the lost level's checkpoint with
+// START_LIVES_AFTER_CONTINUE lives, so closing the game during the
+// continued level and opening it again offers "Continue from level X"
+// (the shop before that level). The continue is already counted.
 function checkpointRun() {
   const checkpoint = progress.checkpoint;
   return {
@@ -156,7 +156,7 @@ function checkpointRun() {
     lives: START_LIVES_AFTER_CONTINUE,
     score: checkpoint.score,
     upgrades: { ...checkpoint.upgrades },
-    continuesUsed: continuesUsed + 1,
+    continuesUsed,
   };
 }
 
@@ -290,7 +290,7 @@ function finishStartup() {
 // ---------------------------------------------------------------------
 const continuePrompt = { selected: 0 }; // button chosen with the keyboard
 
-// Where the screen goes (overlayFrame in game.js): from the top of the
+// Where the screen goes (overlayFrame in layout.js): from the top of the
 // star plate to the bottom of the last button
 function continuePromptFrame() {
   return overlayFrame(-8.6, 3.4);
@@ -299,14 +299,14 @@ function continuePromptFrame() {
 function continuePromptButtons() {
   const { s, cx, cy } = continuePromptFrame();
   const width = s * 9;
-  const height = buttonHeight(s * 1.6); // at least 48 px (game.js)
+  const height = buttonHeight(s * 1.6); // at least 48 px (layout.js)
   const x = cx - width / 2;
   const top = cy - s * 0.5;
   return [
     {
       label: "CONTINUE FROM LEVEL " + (progress.run ? progress.run.level : ""),
       primary: true,
-      action: continueSavedRun,  // game.js
+      action: continueSavedRun,  // state.js
       x, y: top, width, height,
     },
     {
@@ -315,7 +315,7 @@ function continuePromptButtons() {
       action: () => {
         progress.run = null;
         writeSave();
-        newGame();               // game.js
+        newGame();               // state.js
       },
       x, y: top + height + s * 0.6, width, height,
     },
@@ -339,7 +339,7 @@ function continuePromptKeyDown(event) {
   event.preventDefault();
   if (code === "ArrowUp" || code === "ArrowDown") {
     continuePrompt.selected = 1 - continuePrompt.selected;
-    scrollOverlayTo(continuePromptButtons()[continuePrompt.selected]); // game.js
+    scrollOverlayTo(continuePromptButtons()[continuePrompt.selected]); // input.js
   } else if (!event.repeat) {
     Sound.play("uiTap");
     continuePromptButtons()[continuePrompt.selected].action();
@@ -370,8 +370,8 @@ function drawContinuePrompt() {
   drawMessageStrip("BEST SCORE " + progress.bestScore, cx, cy - s * 1.7, s * 0.45, "#c9ced6", maxWidth);
 
   // Keyboard players see which button Enter will press
-  const showSelection = showKeyboardFocus(); // game.js
+  const showSelection = showKeyboardFocus(); // input.js
   continuePromptButtons().forEach((b, i) => {
-    drawMenuButton(b, showSelection && i === continuePrompt.selected); // game.js
+    drawMenuButton(b, showSelection && i === continuePrompt.selected); // gameover.js
   });
 }

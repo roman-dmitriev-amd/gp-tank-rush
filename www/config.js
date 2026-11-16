@@ -20,14 +20,15 @@ const GAME_SUBTITLE = "Base Defense";
 // show; {level} and {left} are filled in by the game.
 const UI_TEXT = {
   gameOver: {
-    retry: "CONTINUE",                                   // continue button (ads.js decides if an ad plays)
+    watchAd: "WATCH AD TO CONTINUE",                     // continue button, while a rewarded ad is ready (ads.js)
     retrySub: "Retry level {level}, keep your upgrades", // its smaller second line, {level} = the level just lost
+    adNotAvailable: "AD NOT AVAILABLE",                  // the same button, off, while no ad is ready; also shown if an ad fails
+    adNotAvailableSub: "No continue right now",          // its second line then
     startOver: "START OVER",
     startOverSub: "Back to Level 1",
     retriesLeft: "{left} CONTINUES LEFT",  // between the buttons, only with a limit and more than one left
-    loadingAd: "LOADING...",               // between the buttons while ads.js hasn't answered
-    noReward: "NO CONTINUE THIS TIME",     // ads.js answered false (an ad was skipped)
-    adNotAvailable: "NOT AVAILABLE NOW",   // ads.js failed or didn't answer
+    loadingAd: "LOADING AD...",            // between the buttons while ads.js hasn't answered
+    noReward: "NO REWARD THIS TIME",       // ads.js answered false (the ad was closed early or failed)
   },
 };
 
@@ -64,7 +65,7 @@ const GRID_ROWS = 21;  // playfield height in tiles
 const LEVEL_MAX_FILLED = 0.35;
 
 // =====================================================================
-//  Player, enemies, bullets and screen timings (game.js). Each enemy
+//  Player, enemies, bullets and screen timings (state.js, tanks.js, enemyai.js, bullets.js). Each enemy
 //  type's own speed, health, bullets, fire rate and points are in
 //  enemies.js; later levels make enemies faster (ENEMY_SCALING above).
 // =====================================================================
@@ -267,7 +268,7 @@ const TERRAIN = {
 // =====================================================================
 //  Visuals: soft shadows, ground shading and the playfield vignette.
 //  Like the ground, bricks and tanks they are painted once into cached
-//  pictures (cachedPicture in game.js), so they cost little per frame.
+//  pictures (cachedPicture in render.js), so they cost little per frame.
 // =====================================================================
 
 const VISUALS = {
@@ -282,7 +283,7 @@ const VISUALS = {
 };
 
 // =====================================================================
-//  Tank explosions (drawBlast in game.js): a flash, a fireball that
+//  Tank explosions (drawBlast in explosions.js): a flash, a fireball that
 //  cools from white to dark red, smoke, a shock ring, sparks and metal
 //  pieces in the tank's colors, and a scorch mark left on the ground.
 //  The base blows up the same way, bigger. Only looks: nothing here
@@ -346,15 +347,14 @@ const SAVE = {
 };
 
 // =====================================================================
-//  Continue on the game over screen (game.js): "Continue" asks ads.js
-//  for a rewarded ad (showRewardedAd; for now it gives the reward with
-//  no ad), then the lost level starts again from its checkpoint (how
-//  the run stood when the level started)
+//  Continue on the game over screen (gameover.js): only by watching a
+//  rewarded ad (ads.js). If the reward is earned, the lost level starts
+//  again from its checkpoint (how the run stood when the level started)
 // =====================================================================
 
 // Continues per run ("Start over" starts a new run): a number, or null
 // (or Infinity) for no limit. They are counted and saved either way.
-const REWARDED_CONTINUES_PER_RUN = null;
+const REWARDED_CONTINUES_PER_RUN = 1;
 const START_LIVES_AFTER_CONTINUE = 3;  // lives after a continue
 const AD_MESSAGE_TIME = 2;   // seconds UI_TEXT.gameOver.noReward / adNotAvailable shows
 const AD_WAIT_LIMIT = 90;    // seconds without an answer before giving up (paused time doesn't count)
@@ -462,7 +462,7 @@ const SOUND_FILES = {
 
 // =====================================================================
 //  Screen layout. Chosen only from the size of the game's window
-//  (computeLayout in game.js): portrait when it is narrower than tall,
+//  (computeLayout in layout.js): portrait when it is narrower than tall,
 //  landscape otherwise.
 //
 //  Portrait: the playfield on top, the control zone at the bottom.
@@ -482,7 +482,7 @@ const CONTROL_ZONE = {
 
 // Landscape: the playfield is shown turned a quarter clockwise (21 x 13
 // tiles on screen, the base on the left, the enemy spawns on the right;
-// mapToScreen() in game.js) and uses the full height (a little less if
+// mapToScreen() in layout.js) and uses the full height (a little less if
 // that makes room for the controls beside it, minFieldShare), centered. The side
 // area on the movement side has the HUD (with the upgrade badges under
 // it) at the top and the joystick or cross in the bottom corner, next
@@ -521,7 +521,7 @@ const LANDSCAPE = {
 };
 
 // The upgrade badges under the HUD display and in the pause menu
-// (game.js): a small metal frame around a dark screen with the
+// (hud.js): a small metal frame around a dark screen with the
 // upgrade's icon, and tier dots under it for bullets and speed
 const BADGE_ROW = {
   gap: 0.15,             // space between badges, in badge widths
@@ -532,7 +532,7 @@ const BADGE_ROW = {
 };
 
 // How the control panel looks (only looks: the controls work the same).
-// The static parts are painted once into cached pictures (game.js).
+// The static parts are painted once into cached pictures (render.js).
 const CONTROL_LOOK = {
   panel: ["#353a31", "#22261f", "#161913"],          // metal panel: top, middle, bottom
   panelTint: 0.25,       // how much of the theme's screen color is mixed into the panel

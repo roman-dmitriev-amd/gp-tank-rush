@@ -35,7 +35,7 @@ const POWERUP_TYPES = {
     },
   },
 
-  // Shield: the player can't be destroyed (checked in game.js)
+  // Shield: the player can't be destroyed (checked in bullets.js)
   shield: {
     color: PLAYER_LOOKS.shieldGlow,  // blue, like the shielded tank
     paintSymbol: paintShield,
@@ -59,7 +59,7 @@ const POWERUP_TYPES = {
     onEnd: () => setBaseWalls("brick"),
   },
 
-  // Clock: enemies can't move or shoot (checked in game.js)
+  // Clock: enemies can't move or shoot (checked in enemyai.js)
   clock: {
     color: "#ff9a2e",          // orange
     paintSymbol: paintClock,
@@ -96,7 +96,7 @@ function baseWallsNeedRepair() {
 // ---------------------------------------------------------------------
 // Badges, symbols and the coin. These paint on a context "c" and are
 // only called once per look and size: the game caches the result
-// (cachedPicture in game.js) and copies it every frame. Colors of the
+// (cachedPicture in render.js) and copies it every frame. Colors of the
 // metal rim, the dark face and the coin are in config.js (PICKUP_LOOKS).
 // Light comes from the top-left, like everywhere else.
 // ---------------------------------------------------------------------

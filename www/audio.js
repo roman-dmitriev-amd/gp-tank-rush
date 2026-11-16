@@ -7,7 +7,7 @@
 //
 //  Use:  Sound.play("coin")   or   Sound.play("gameOver", 0.4)  (delay)
 //        Sound.play("powerUp", 0, "shield")   (a sound's variant)
-//        Sound.setEngine(driving, pitch)      (every frame, game.js)
+//        Sound.setEngine(driving, pitch)      (every frame, tanks.js)
 //  The names are the ones in AUDIO.volumes (config.js).
 //
 //  Browsers only allow sound after the player touches / clicks / presses
@@ -17,7 +17,7 @@
 //  Sound is OFF (muted) when either:
 //    - the SOUND setting is off (settings.sound, the overall switch;
 //      pause.js calls Sound.refreshMute() when it changes), or
-//    - a rewarded ad is loading or playing (Sound.setAdPlaying, game.js).
+//    - a rewarded ad is loading or playing (Sound.setAdPlaying, gameover.js).
 //  On top of that, the settings have two separate switches: sound
 //  effects (settings.soundEffects) and the engine (settings.engineSound).
 //  While the app is hidden (in the background, screen off) the
@@ -653,9 +653,9 @@ const Sound = (() => {
     for (const source of old.sources) source.stop(end);
   }
 
-  // Called every frame by game.js: "driving" says whether the player's
+  // Called every frame by tanks.js: "driving" says whether the player's
   // tank is driving right now, "pitch" how high the engine sounds
-  // (1 = normal, see enginePitch() in game.js). The engine fades in /
+  // (1 = normal, see enginePitch() in tanks.js). The engine fades in /
   // out only when that changes, so this costs nothing most frames.
   function setEngine(driving, pitch) {
     if (!audioCtx || !engineBus) return;
@@ -751,7 +751,7 @@ const Sound = (() => {
 
   // The app was hidden / shows again: stop / restart audio and the
   // sound files' downloads. The engine goes silent right away and comes
-  // back only when game.js says the player is driving again.
+  // back only when tanks.js says the player is driving again.
   function setSystemPaused(paused) {
     systemPaused = paused;
     if (!audioCtx) return;

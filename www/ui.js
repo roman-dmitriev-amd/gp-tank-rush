@@ -4,7 +4,7 @@
 //  screen: framed panels, title plates, buttons and a metal background.
 //  Same style as the control panel: metal lit from the top-left, dark
 //  sunken screens, gold stars. Static parts are painted once and cached
-//  (cachedPicture in game.js); only text is drawn every frame.
+//  (cachedPicture in render.js); only text is drawn every frame.
 //  Colors are in config.js (CONTROL_LOOK, BASE_LOOK).
 // =====================================================================
 
@@ -188,7 +188,7 @@ function paintButton(c, width, height, primary) {
   c.restore();
 }
 
-// How the pointer touches button b (uiPointer, game.js): "pressed" while
+// How the pointer touches button b (uiPointer, input.js): "pressed" while
 // a finger or the mouse button is down on it (not while that drags a
 // list to scroll it), "hover" while the mouse is over it, otherwise "".
 // Nothing while the button can't be used ("enabled" false).

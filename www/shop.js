@@ -6,7 +6,7 @@
 //    - "upgrades": what the player has bought in this run
 //    - SHOP_ITEMS: the items for sale (name, icon, price, what it does)
 //    - the shop screen: drawing, scrolling, tapping and keys
-//  The game (game.js) only opens the shop, passes input to it and
+//  The game (state.js, input.js, render.js) only opens the shop, passes input to it and
 //  calls drawShop() while it's open.
 // =====================================================================
 
@@ -134,7 +134,7 @@ const SHOP_ITEMS = [
 
 // ---------------------------------------------------------------------
 // Upgrade badges: what the player holds, shown under the HUD display
-// and in the pause menu (drawn in game.js, see drawUpgradeBadge).
+// and in the pause menu (drawn in hud.js, see drawUpgradeBadge).
 // Each has:
 //   id       names the badge's cached pictures and its flash
 //   name     shown under it in the pause menu
@@ -230,7 +230,7 @@ const SHOP_GRID_BOTTOM = 2.3;  //   and from the last row to the bottom (the but
 const SHOP_SCROLL_BAR = 0.5;   //   room kept on the right for the scroll bar
 
 // Landscape: the shop's unit and grid for a layout (computeLayout in
-// game.js calls this). The unit is big enough for minTouch buttons
+// layout.js calls this). The unit is big enough for minTouch buttons
 // (no smaller than the tiles); 3 columns of cards if they fit at least
 // shopCardWidth units wide each, otherwise 2. Cards are at most
 // shopCardMax units wide; in narrow windows 2 cards may be narrower than
@@ -247,7 +247,7 @@ function shopGridPlace(layout) {
   const roomBottom = layout.height - safe.bottom - L.spacing;
   const widthIn = (cols, card) => cols * card + (cols - 1) * SHOP_CARD_GAP + SHOP_SCROLL_BAR; // in units
 
-  let s = Math.max(uprightTileSize(layout), L.minTouch / SHOP_BUTTON_HEIGHT); // game.js
+  let s = Math.max(uprightTileSize(layout), L.minTouch / SHOP_BUTTON_HEIGHT); // layout.js
   const cols = widthIn(3, L.shopCardWidth) * s <= right - left ? 3 : 2;
   s = Math.min(s, (right - left) / widthIn(cols, SHOP_CARD_MIN));
   const card = Math.min(L.shopCardMax, ((right - left) / s - widthIn(cols, 0)) / cols);
@@ -269,7 +269,7 @@ function shopLayout() {
   const top = grid ? grid.top : field.y;
   const bottom = grid ? grid.bottom : controlZone.zone.y + controlZone.zone.height;
 
-  const button = { width: s * 8, height: buttonHeight(s * SHOP_BUTTON_HEIGHT) }; // at least 48 px (game.js)
+  const button = { width: s * 8, height: buttonHeight(s * SHOP_BUTTON_HEIGHT) }; // at least 48 px (layout.js)
   button.x = left + (width - button.width) / 2;
   button.y = bottom - button.height - s * 0.3;
 
@@ -315,7 +315,7 @@ function clampScroll() {
 }
 
 // ---------------------------------------------------------------------
-// Input (game.js passes events here while the shop is open)
+// Input (input.js passes events here while the shop is open)
 // ---------------------------------------------------------------------
 function shopPointerDown(x, y, pointerId) {
   if (stateTimer < SHOP_INPUT_DELAY || shop.pointer) return;
@@ -511,7 +511,7 @@ function drawShopCard(layout, index) {
   const frame = drawFramedPanel(x, y, w, h);
   const listArea = { x: list.x, y: list.top, width: list.width, height: list.bottom - list.top };
   const look = buttonPointerLook(place, !maxed && stateTimer >= SHOP_INPUT_DELAY &&
-                                        isInsideRect(listArea, uiPointer.x, uiPointer.y)); // ui.js, game.js
+                                        isInsideRect(listArea, uiPointer.x, uiPointer.y)); // ui.js, input.js
   if (look) {
     ctx.fillStyle = look === "pressed" ? CONTROL_LOOK.pressedShade : CONTROL_LOOK.hover;
     roundedRect(ctx, x, y, w, h, Math.min(h * 0.14, frame * 2.4));

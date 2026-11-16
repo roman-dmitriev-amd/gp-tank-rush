@@ -33,7 +33,7 @@
 //  Leave a way from the spawn points to the base: brick is fine (it
 //  can be shot), but water, concrete and metal block tanks. Keep at
 //  most 35% of the tiles brick, concrete, metal or water (forest, sand
-//  and ice don't count). With DEBUG on, checkLevels in game.js warns
+//  and ice don't count). With DEBUG on, checkLevels in map.js warns
 //  in the console about all of this.
 //
 //  20 hand-made levels, 5 per theme: 1-5 standard (world 1), 6-10

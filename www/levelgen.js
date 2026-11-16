@@ -23,7 +23,7 @@
 //  Never use Math.random in here: all randomness comes from the seeded
 //  random number generator, so a seed always gives the same level.
 //  (It uses GRID_COLS and GRID_ROWS from config.js, and BASE_TILE,
-//  PLAYER_START, SPAWN_POINTS and baseWallTiles() from game.js, which
+//  PLAYER_START, SPAWN_POINTS and baseWallTiles() from layout.js and map.js, which
 //  are ready by the time a level is generated.)
 // =====================================================================
 
@@ -336,7 +336,7 @@ function openLayout() {
 // start, the heavy share rises with the difficulty. Each type is
 // spread evenly through the list (with a little seeded wobble), so
 // heavy tanks don't all come at once.
-// (Every 4th enemy carries a power-up: game.js does that when it
+// (Every 4th enemy carries a power-up: enemyai.js does that when it
 // spawns, POWERUPS.flashingEnemyEvery.)
 function generateEnemies(random, difficulty) {
   const g = GENERATOR;
