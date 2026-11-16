@@ -90,6 +90,20 @@ The code was moved, not rewritten: every line of the old `game.js` is in exactly
 
 # Round 3: quality pass (from QUALITY_PLAN.md)
 
+## Summary
+
+Four parts, each tested in the browser and committed on branch `claude/tank-rush-android-d11322`:
+
+0. **Feel and speed**: shot, hit, pickup and explosion feedback; the load-time error fixed; the map's floor and walls drawn once instead of every frame; at most 2 real pixels per CSS pixel.
+1. **Front door and flow**: a title screen, chiptune music made in code with a MUSIC setting, fades between screens, a level summary that counts up.
+2. **Difficulty**: enemies that seek and aim more with each level, more of them at once, a new gunner tank from level 11, a HOLD TO FIRE setting, and a level select that only exists with `DEBUG = true`. Level 1 is unchanged.
+3. **Final check**: the full run below. `DEBUG` is `false`.
+
+Of the 25 proposals in `QUALITY_PLAN.md`, 13 are done (1, 2, 4-13, 22), one partly (3: no frame-time meter) and one deliberately not (15: tank treads). Open: 14, 16-21, 23-25.
+
+What I could not check, and you should: how the music sounds and how loud it is, whether the new difficulty is fun, and everything that needs a real phone (the list at the end).
+
+
 ## Part 0: quality pass 1 finished
 
 - **Feedback effects** (plan items 1, 2, 5, 6, 7): muzzle flash, recoil, bullets as a streak with a tail, screen shake of the playfield only, a saved VIBRATION setting, a blinking star on the spawn point before an enemy appears, a ring when the player comes back, sparks on every hit, floating gold and score numbers, a ring on a power-up, and wall tiles that break into dust and pieces in their own colors. The numbers are in `FEEDBACK` (`config.js`); the code is in `www/feedback.js` (new) and `www/explosions.js`.
@@ -180,6 +194,20 @@ So the first world is about as before, the middle of the game presses the base a
 
 Tested in the browser: 90 simulated seconds each on levels 1, 7, 12, 16, 20 and 23 (endless) with no errors, the right number of enemies at once, gunners appearing and firing bursts; the shop's "next level" panel with four tank types in portrait (360x800) and landscape (800x360); the settings page with 8 switches fits at 360x800 without scrolling; HOLD TO FIRE gives 5 shots in 3 seconds; the level select starts level 13 with its world banner.
 
+## Part 3: final check
+
+One run in the browser with `DEBUG = true` (for the level select), portrait 412x915 unless said. The preview window was in the background, where the browser stops the game's own frame loop, so I stepped the frames from the console; taps on PLAY and the pause button were real clicks, other buttons were pressed through the game's own tap functions.
+
+- Title screen: PLAY (real click) starts the "LEVEL 1" intro, then level 1 plays and the battle music is on.
+- Pause button (real click): menu opens, game time stands still, music stops. RESUME: the game and the music go on.
+- Settings: SOUND, MUSIC and VIBRATION switched off, page reloaded: all three still off. Switched back on.
+- Game over on level 2 (base destroyed): "AD NOT AVAILABLE / No continue right now" is switched off, pressing it does nothing, "START OVER" is the gold button and starts level 1 with 3 lives. The lost run is not in the save.
+- Rotating during level 1 (412x915 to 915x412 and back): same enemies, same broken bricks, same player position, still playing, the playfield turned.
+- Level select: levels 6 (jungle), 11 (desert), 16 (snow) and 20 for 40 simulated seconds each: the right world, 3 / 4 / 5 / 5 enemies at once.
+- Endless: level 21 ("Endless 21") starts and plays, with gunners.
+- No errors or warnings in the console in the whole run; the layout self-test passes all 15 sizes; the level check warns about nothing.
+- `DEBUG` set back to `false`; without it the title screen has only PLAY.
+
 ## Decisions I made
 
 - **"Work directly in this folder (no worktree)"**: the session was already running in the worktree folder `.claude/worktrees/tank-rush-android-d11322` on branch `claude/tank-rush-android-d11322`, so I kept working there and pushed that branch. `main` in the project's root folder is untouched; merge the branch (or its pull request) to get the work there.
@@ -196,4 +224,20 @@ Tested in the browser: 90 simulated seconds each on levels 1, 7, 12, 16, 20 and 
 - **"Joystick dead-zone and size setting"**: I made the dead zones config numbers and added no size setting. The joystick's size comes from the layout (it is as big as its part allows), and a ninth switch would not fit the settings page on small phones without scrolling.
 - **HOLD TO FIRE is off by default**, because it makes the game easier.
 - **Aimed shots only once per sighting** and **fast tanks neither aim nor seek much**, to keep some of the old random feel and leave the player room to dodge.
+- **Records while testing**: my test runs wrote best scores into the browser's save for `localhost:8090`; I cleared that save at the end. Your phone's save is separate and untouched.
+
+## TEST ON PHONE
+
+1. **Music**: does each tune sound right (title screen and shop; during a level)? Is it quiet enough under the shots? `MUSIC.volume` and `MUSIC.mix` in `config.js`. If you don't like a tune, the notes are in `TUNES` in `music.js`.
+2. **First tap**: nothing sounds before PLAY; after it the fanfare and then the music start.
+3. **Pause and background**: lock the phone or switch apps during a level: silence at once; back in the game the pause menu shows and the music goes on only after RESUME, from where it stopped.
+4. **Vibration**: needs the VIBRATE permission once the Capacitor project exists. Check the tick on each shot, the buzz on losing a life and the base, and that VIBRATION: OFF stops all of it.
+5. **Screen shake**: strong enough to feel, never enough to disturb aiming (`FEEDBACK.shake`).
+6. **Speed**: on your slowest phone, levels 10 and 20 with many explosions. If it stutters, tell me the phone; the next step would be a frame-time meter (plan item 3).
+7. **Sharpness**: on a phone with a very dense screen the picture is now drawn at ratio 2. If it looks soft, raise `VISUALS.maxPixelRatio`.
+8. **Difficulty**: level 1 (easy?), then 7, 11 and 16 from a normal run with shop upgrades. Too hard or too easy: the tables in `DIFFICULTY`.
+9. **HOLD TO FIRE**: switch it on in Settings and hold FIRE.
+10. **Rotate** the phone in the middle of a level, on the title screen and on the level summary while it counts.
+11. **Settings page** in both orientations: 8 switches and BACK, all reachable.
+12. **Saved run**: close the app in the shop and open it again: the title screen offers "CONTINUE FROM LEVEL X".
 

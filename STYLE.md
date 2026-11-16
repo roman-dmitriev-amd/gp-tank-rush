@@ -127,6 +127,8 @@ The screens themselves:
 
 # Reference: how the game works
 
+**Newer than this reference (round 3, see `CHANGES.md`):** the title screen (`title.js`) replaced the start-up "Continue / New game" screen; music (`music.js`, `MUSIC`) and the MUSIC, VIBRATION and HOLD TO FIRE settings; fades between screens and the counting level summary (`screens.js`); the static map and the pixel ratio cap (`render.js`, `layout.js`); the feedback effects (`feedback.js`, `FEEDBACK`); and the difficulty tables with the gunner enemy (`DIFFICULTY`, replacing `MAX_ENEMIES_ON_SCREEN` and `ENEMY_SPAWN_DELAY`). Where the text below disagrees with that, `CHANGES.md` and the code are right.
+
 Moved here from the old CLAUDE.md (the YouTube Playables version) and
 updated for the Google Play version. All game files are in `www/`.
 
