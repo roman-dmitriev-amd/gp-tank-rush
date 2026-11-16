@@ -1,7 +1,7 @@
 // =====================================================================
 //  Tank game - full-screen playfield, player tank, enemy tanks with
 //  simple AI, shooting, breakable bricks, lives, levels, floating
-//  joystick, fire button, keyboard controls, and YouTube Playables SDK
+//  joystick, fire button, keyboard controls and the main loop
 //  hooks (loading, ready, pause/resume).
 //
 //  The level layouts live in levels.js (loaded before this file).
@@ -36,68 +36,6 @@ const DIRECTIONS = {
   down:  { x: 0,  y: 1 },
   left:  { x: -1, y: 0 },
   right: { x: 1,  y: 0 },
-};
-
-// ---------------------------------------------------------------------
-// YouTube Playables SDK helpers
-// The SDK creates a global "ytgame" object. If it failed to load (for
-// example no internet), these helpers just do nothing, so the game
-// still works when opened from your computer.
-// ---------------------------------------------------------------------
-const sdk = {
-  available() {
-    return typeof ytgame !== "undefined";
-  },
-  firstFrameReady() {
-    try { if (this.available()) ytgame.game.firstFrameReady(); } catch (e) { console.warn(e); }
-  },
-  gameReady() {
-    try { if (this.available()) ytgame.game.gameReady(); } catch (e) { console.warn(e); }
-  },
-  onPause(callback) {
-    try { if (this.available()) ytgame.system.onPause(callback); } catch (e) { console.warn(e); }
-  },
-  onResume(callback) {
-    try { if (this.available()) ytgame.system.onResume(callback); } catch (e) { console.warn(e); }
-  },
-  // Running inside YouTube Playables? (The SDK script also loads when
-  // the page is opened locally, but ads only work inside Playables.)
-  inPlayables() {
-    return this.available() && ytgame.IN_PLAYABLES_ENV === true;
-  },
-  // Show a rewarded ad (ytgame.ads.requestRewardedAd, a public-preview
-  // API). Resolves true if the player earned the reward, false if not;
-  // rejects if no ad could be shown (the error may be undefined). Only
-  // call it when the player taps a button that offers the reward.
-  // With DEBUG outside Playables the ad is simulated (DEBUG_AD).
-  requestRewardedAd(rewardId) {
-    if (!this.inPlayables()) {
-      if (!DEBUG) return Promise.reject(new Error("Rewarded ads only work inside YouTube Playables"));
-      return new Promise((resolve, reject) => setTimeout(() => {
-        if (DEBUG_AD.result === "error") reject(new Error("simulated: no ad"));
-        else resolve(DEBUG_AD.result === "reward");
-      }, DEBUG_AD.delay * 1000));
-    }
-    try {
-      return Promise.resolve(ytgame.ads.requestRewardedAd(rewardId)).then((rewarded) => rewarded === true);
-    } catch (e) {
-      return Promise.reject(e);
-    }
-  },
-  // Send the run's score. Always a whole number, never negative or NaN.
-  // YouTube keeps the highest score sent, which matches the saved best
-  // score, since updateRecords() runs right before each send.
-  sendScore(value) {
-    const safe = Math.max(0, Math.floor(Number(value) || 0));
-    if (!this.available()) {
-      if (DEBUG) console.log("sendScore: " + safe);
-      return;
-    }
-    try {
-      const result = ytgame.engagement.sendScore({ value: safe });
-      if (result && result.catch) result.catch((e) => console.warn(e));
-    } catch (e) { console.warn(e); }
-  },
 };
 
 // ---------------------------------------------------------------------
@@ -252,9 +190,9 @@ function readSafeArea() {
 // is reset, only touches and held keys are let go (their controls may
 // have moved, and a direction on screen may now mean another one on the
 // map).
-// The window changed size while YouTube had the game paused: nothing is
-// drawn then (setting the canvas size would also clear it), so the
-// resume does the resize (setSystemPause in pause.js)
+// The window changed size while the app was hidden: nothing is drawn
+// then (setting the canvas size would also clear it), so the resize is
+// done when it shows again (setSystemPause in pause.js)
 let resizeWaiting = false;
 
 function resize() {
@@ -991,23 +929,6 @@ function setState(newState) {
   releaseAllInput(); // don't carry held buttons into the new screen
   resetOverlayScroll();
   if (newState === GAME_STATE.LEVEL_INTRO) Sound.play("levelStart"); // the "LEVEL X" fanfare
-  if (newState === GAME_STATE.PLAYING) onPlayStarted();
-}
-
-// The "LEVEL X" intro is over and the player can drive now
-let gameReadySent = false;
-
-function onPlayStarted() {
-  sendGameReady();
-}
-
-// Tell YouTube the game is ready only once the player can really
-// play or press a button (not during the loading or intro screen),
-// and only once: level 1 starts, or the continue screen shows (save.js)
-function sendGameReady() {
-  if (gameReadySent) return;
-  gameReadySent = true;
-  sdk.gameReady();
 }
 
 // All enemies of this level destroyed (and the coins collected or
@@ -1021,7 +942,6 @@ function finishLevel() {
   awardLevelBonuses();
   updateRecords(); // best score, highest level (save.js)
   writeSave();
-  submitScore(score); // save.js
   setState(GAME_STATE.LEVEL_SUMMARY);
 }
 
@@ -1058,7 +978,6 @@ function loseGame() {
   // level's checkpoint (save.js), otherwise it's over
   progress.run = canOfferContinue() ? checkpointRun() : null;
   writeSave();
-  submitScore(score);    // save.js
   showGameOver();
 }
 
@@ -1239,8 +1158,7 @@ window.addEventListener("keydown", (event) => {
     return;
   }
 
-  // Escape opens the pause menu (during a level). Never preventDefault
-  // on Escape: YouTube uses it too.
+  // Escape opens the pause menu (during a level)
   if (event.code === "Escape") {
     if (!event.repeat) openPauseMenu();
     return;
@@ -1571,7 +1489,7 @@ function isScrollDragging() {
 }
 
 // --- Pointer events (work for both touch and mouse) ---
-// Nothing reacts while YouTube has the game paused.
+// Nothing reacts while the app is hidden.
 canvas.addEventListener("pointerdown", (event) => {
   event.preventDefault();
   if (isSystemPaused()) return;
@@ -1761,19 +1679,19 @@ function pressScreenButton() {
   else openShop();
 }
 
-// --- Game over screen: "Retry level X" and "Start over" ---
-// "Retry level X" plays a YouTube rewarded ad. If the player earns the
-// reward, the lost level starts again from its checkpoint (save.js).
-// The button shows only inside Playables (with DEBUG also outside,
-// where the ad is simulated), from level 2 on (level 1's checkpoint is
-// the same as "Start over") and while the run has continues left
+// --- Game over screen: "Continue" and "Start over" ---
+// "Continue" asks ads.js for a rewarded ad (showRewardedAd; for now a
+// stub that gives the reward at once, with no ad). If the player earns
+// the reward, the lost level starts again from its checkpoint (save.js).
+// The button shows from level 2 on (level 1's checkpoint is the same as
+// "Start over") and while the run has continues left
 // (REWARDED_CONTINUES_PER_RUN, null = no limit). Texts: UI_TEXT.gameOver.
 const gameOverScreen = {
   selected: 0,         // button chosen with the keyboard
   waitingForAd: false, // the ad was asked for, no answer yet (game paused, buttons off, muted)
   adWaitTime: 0,       // seconds waited, not counting system pauses (AD_WAIT_LIMIT)
   adRequest: 0,        // counts the requests, so a late answer is ignored
-  adAnswer: null,      // YouTube's answer, taken by the game loop: { request, failure }
+  adAnswer: null,      // the ad's answer, taken by the game loop: { request, failure }
   message: "",         // UI_TEXT.gameOver.adNotAvailable / noReward
   messageTime: 0,      // seconds the message still shows
 };
@@ -1800,8 +1718,7 @@ function continuesLeft() {
 // run stays saved on game over, see loseGame.)
 function canOfferContinue() {
   const checkpoint = progress.checkpoint;
-  return (sdk.inPlayables() || DEBUG) && checkpoint !== null && checkpoint.level > 1 &&
-         continuesLeft() > 0;
+  return checkpoint !== null && checkpoint.level > 1 && continuesLeft() > 0;
 }
 
 // Where the game over screen goes (overlayFrame): it reaches from the
@@ -1824,7 +1741,7 @@ function gameOverButtons() {
 }
 
 // What the buttons are, each with a smaller second line: the gold
-// "Retry level X" with the ad badge (if offered), then "Start over"
+// "Continue" (if offered), then "Start over"
 // (gold when it's the only one, in the top place)
 function gameOverButtonItems() {
   const text = UI_TEXT.gameOver;
@@ -1832,8 +1749,8 @@ function gameOverButtonItems() {
   if (canOfferContinue()) {
     buttons.push({
       label: text.retry.replace("{level}", progress.checkpoint.level),
-      sub: text.retrySub,
-      adBadge: true,
+      sub: text.retrySub.replace("{level}", progress.checkpoint.level),
+      adBadge: false, // true draws the small play-triangle plate (ui.js), for a real ad later
       action: requestContinueAd,
     });
   }
@@ -1884,11 +1801,11 @@ function gameOverKeyDown(event) {
   }
 }
 
-// "Retry level X" pressed: ask YouTube for the rewarded ad (only
-// ever from this button). Until it answers the game is paused (isPaused,
+// "Continue" pressed: ask ads.js for the rewarded ad (only ever from
+// this button). Until it answers the game is paused (isPaused,
 // pause.js), the buttons are off and all sound is muted. The answer is
-// taken by the game loop (updateAdWait), so one that comes while
-// YouTube has the game paused waits for the resume.
+// taken by the game loop (updateAdWait), so one that comes while the
+// app is hidden waits until it shows again.
 function requestContinueAd() {
   const over = gameOverScreen;
   over.waitingForAd = true;
@@ -1898,16 +1815,16 @@ function requestContinueAd() {
   over.adRequest += 1;
   const request = over.adRequest;
   Sound.setAdPlaying(true);
-  sdk.requestRewardedAd(REWARD_ID_CONTINUE).then(
+  Promise.resolve().then(showRewardedAd).then( // ads.js; a throw counts as "not available"
     (rewarded) => { over.adAnswer = { request, failure: rewarded ? "" : UI_TEXT.gameOver.noReward }; },
     (error) => {
-      console.warn("Rewarded ad failed", error);
+      if (DEBUG) console.warn("Rewarded ad failed", error);
       over.adAnswer = { request, failure: UI_TEXT.gameOver.adNotAvailable };
     }
   );
 }
 
-// YouTube answered (or AD_WAIT_LIMIT passed): continue, or show why
+// The ad answered (or AD_WAIT_LIMIT passed): continue, or show why
 // not for AD_MESSAGE_TIME seconds and keep the buttons (no continue
 // used). An answer after giving up is ignored.
 function finishContinueAd(request, failure) {
@@ -1924,7 +1841,7 @@ function finishContinueAd(request, failure) {
 }
 
 // Called every frame (also while the game is paused for the ad): take
-// YouTube's answer, or give up on an ad that never answers, so "Start
+// the ad's answer, or give up on an ad that never answers, so "Start
 // over" can't stay off for good. The loop stops during system pauses,
 // so those don't count.
 function updateAdWait(deltaSeconds) {
@@ -1973,7 +1890,6 @@ function showCampaignComplete() {
   if (isLastLevel()) progress.run = null;  // nothing to continue without endless mode
   updateRecords();
   writeSave();
-  submitScore(score); // save.js
   campaignScreen.selected = 0;
   setState(GAME_STATE.CAMPAIGN_COMPLETE);
 }
@@ -5128,10 +5044,9 @@ function loop(time) {
 
   // While the pause menu is open (or a rewarded ad loads or plays),
   // nothing moves and no timer counts (all timers are counted in
-  // update), but we keep drawing the menu. YouTube's answers (the save,
-  // a rewarded ad) are taken here, so never while YouTube has us paused.
+  // update), but we keep drawing the menu. A rewarded ad's answer is
+  // taken here, so never while the app is hidden.
   if (!isPaused()) update(deltaSeconds);
-  updateSaveLoading(deltaSeconds); // save.js
   updateAdWait(deltaSeconds);
   updateEngineSound();
   draw();
@@ -5154,17 +5069,21 @@ function stopLoop() {
 
 // ---------------------------------------------------------------------
 // Pause / resume from outside the game (the menu is in pause.js)
-// Only YouTube pauses and resumes the game (ytgame.system.onPause /
-// onResume), never the page's visibility, focus or blur. YouTube
-// requires that EVERYTHING stops while paused, so the game loop stops
-// completely until onResume.
+// The app went to the background, the screen turned off or the tab was
+// hidden: EVERYTHING stops (the game loop, input, sound) and the game is
+// saved, since the player may not come back. During a level the pause
+// menu opens too, so coming back never drops the player straight into
+// the action: they press RESUME themselves.
 // ---------------------------------------------------------------------
-// The player may be leaving for good, so save right away (save.js).
-sdk.onPause(() => {
-  setSystemPause(true);
-  writeSave();
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    openPauseMenu(true); // without the tap sound; does nothing outside a level
+    setSystemPause(true);
+    writeSave();
+  } else {
+    setSystemPause(false);
+  }
 });
-sdk.onResume(() => setSystemPause(false));
 
 // ---------------------------------------------------------------------
 // DEBUG: layout self-test. Works out the layout (computeLayout) for the
@@ -5384,19 +5303,14 @@ function init() {
   resize();
   showLoadingScreen();
 
-  // 2. Tell YouTube the first frame (loading screen) is on screen
-  sdk.firstFrameReady();
+  // 2. Read the save (save.js): then the continue screen shows (a run
+  //    was saved) or the "LEVEL 1" intro starts
+  document.title = GAME_TITLE + ": " + GAME_SUBTITLE;
+  loadSaveAtStartup();
 
-  // 3. Load the save in the background (save.js). Once it's there (or
-  //    after SAVE.loadTimeout), the game loop shows the continue screen
-  //    (a run was saved) or starts the "LEVEL 1" intro.
-  startLoadingSave();
-
-  // 4. On the next frame, start the loop. gameReady() is sent later,
-  //    when the continue screen shows or the "LEVEL 1" intro ends and
-  //    the controls work (see sendGameReady).
+  // 3. On the next frame, start the loop
   requestAnimationFrame(() => {
-    if (isSystemPaused()) return; // YouTube paused us already: onResume starts the loop
+    if (isSystemPaused()) return; // hidden already: showing the app starts the loop
     draw();
     startLoop();
   });

@@ -9,10 +9,8 @@
   <title>Tank Rush: Base Defense</title>
   <meta name="description" content="Drive your tank, stop the enemy waves and protect your base.">
 
-
-  <!-- YouTube Playables SDK. It MUST load before any game code.
-       When the page is opened locally it simply does nothing. -->
-  <script src="https://www.youtube.com/game_api/v1"></script>
+  <meta name="theme-color" content="#1c211a">
+  <meta name="format-detection" content="telephone=no">
 
   <style>
     /* Fill the whole screen, no margins, no scrolling */
@@ -24,12 +22,15 @@
       width: 100dvw;
       height: 100dvh;
       overflow: hidden;
+      position: fixed;          /* nothing to scroll, so no rubber-band bounce */
+      overscroll-behavior: none; /* no pull-to-refresh or overscroll glow */
       background: #1c211a; /* the metal around the playfield in the first theme; themes.js updates it */
 
       /* No text selection, no long-press menu, no tap highlight */
       user-select: none;
       -webkit-user-select: none;
       -webkit-touch-callout: none;
+      -webkit-text-size-adjust: 100%;
       -webkit-tap-highlight-color: transparent;
 
       /* Tell the browser not to scroll or zoom on touches */
@@ -51,7 +52,9 @@
     }
 
     /* Invisible helper: its padding equals the phone's safe areas
-       (notch, rounded corners, home bar). game.js reads these numbers. */
+       (notch or camera hole, status bar, rounded corners, gesture bar).
+       game.js reads these numbers and keeps the playfield, HUD and
+       controls out of them. */
     #safe-area {
       position: fixed;
       visibility: hidden;
@@ -67,7 +70,8 @@
   <canvas id="game"></canvas>
   <div id="safe-area"></div>
 
-  <!-- Our game code (loaded after the SDK): settings and data first, then the game -->
+  <!-- The game code: settings and data first, then the game. Everything is
+       local: no file is loaded from the internet. -->
   <script src="config.js"></script>
   <script src="themes.js"></script>
   <script src="materials.js"></script>
@@ -81,6 +85,7 @@
   <script src="tutorial.js"></script>
   <script src="save.js"></script>
   <script src="audio.js"></script>
+  <script src="ads.js"></script>
   <script src="game.js"></script>
 </body>
 </html>
