@@ -94,6 +94,35 @@ function cycleDebugTheme() {
   startLevel(levelIndex);
 }
 
+// ---------------------------------------------------------------------
+// DEBUG: level select on the title screen (title.js adds these buttons
+// only when DEBUG is true): "LEVEL -" and "LEVEL +" side by side, and
+// under them "DEBUG: START LEVEL n", which starts a new game at that
+// level (no gold, no upgrades). With endless mode it goes 20 levels
+// past the last hand-made one.
+// ---------------------------------------------------------------------
+const debugSelect = { level: 1 };
+
+function debugLevelButtons(x, y, width, height, gap) {
+  const last = LEVELS.length + (ENDLESS_ENABLED || GENERATED_MODE ? 20 : 0);
+  const change = (by) => () => { debugSelect.level = clamp(debugSelect.level + by, 1, last); };
+  const half = (width - gap) / 2;
+  const n = debugSelect.level;
+  return [
+    { label: "LEVEL -", primary: false, action: change(-1), x, y, width: half, height },
+    { label: "LEVEL +", primary: false, action: change(1), x: x + half + gap, y, width: half, height },
+    { label: "DEBUG: START LEVEL " + n, primary: false, action: () => debugStartLevel(n), x, y: y + height + gap, width, height },
+  ];
+}
+
+// A fresh run that begins at level number n (from 1)
+function debugStartLevel(n) {
+  if (!DEBUG) return;
+  progress.run = null;
+  newGame();
+  if (n > 1) startLevel(n - 1);
+}
+
 // Small orange tags in the top-left corner of the map showing the
 // debug settings, e.g. "FREEZE  SEED 1003 D3". Only when DEBUG is
 // true: with DEBUG off nothing of this is drawn. (The upgrade tiers

@@ -46,12 +46,39 @@ function currentLevel() {
 const generatedLevels = [];
 
 function levelAt(index) {
+  if (!tunedLevels[index]) tunedLevels[index] = withGunners(plainLevelAt(index), index + 1);
+  return tunedLevels[index];
+}
+
+// The level as it is written (levels.js) or generated, before the
+// difficulty rules change its enemy list
+function plainLevelAt(index) {
   const endless = ENDLESS_ENABLED && index >= LEVELS.length;
   if (!GENERATED_MODE && !endless) return LEVELS[index];
   if (!generatedLevels[index]) {
     generatedLevels[index] = GENERATED_MODE ? generatedRunLevel(index) : endlessLevel(index);
   }
   return generatedLevels[index];
+}
+
+// Levels with their final enemy lists, kept so each is only made once
+const tunedLevels = [];
+
+// Level number "n" (from 1) with some of its "basic" tanks turned into
+// "gunner" tanks: as many as DIFFICULTY.gunners says for that level,
+// spread evenly through the basic ones, never among the first three
+// enemies. The level itself is not changed: a copy is returned.
+function withGunners(level, n) {
+  const wanted = difficultyAt(DIFFICULTY.gunners, n);
+  const basics = [];
+  level.enemies.forEach((name, i) => { if (name === "basic" && i >= 3) basics.push(i); });
+  const count = Math.min(wanted, basics.length);
+  if (count <= 0) return level;
+  const enemies = level.enemies.slice();
+  for (let k = 0; k < count; k++) {
+    enemies[basics[Math.floor((k + 0.5) * basics.length / count)]] = "gunner";
+  }
+  return { ...level, enemies };
 }
 
 // Generated run: level N has seed baseSeed + N, difficulty N (max 15)

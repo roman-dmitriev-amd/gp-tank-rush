@@ -26,6 +26,11 @@ function enemyDirectionClosed(enemy, dir) {
 // e.g. the one that just got us stuck. Directions that run straight
 // into water are skipped too (unless nothing else is left).
 function randomEnemyDirection(enemy, avoid) {
+  // Seeking: sometimes head for the base or the player instead
+  if (Math.random() < seekChance(enemy)) {
+    const dir = seekDirection(enemy);
+    if (dir && dir !== avoid) return dir;
+  }
   let choices = Object.keys(ENEMY_DIRECTION_WEIGHTS).filter((d) => d !== avoid);
   const open = choices.filter((d) => !enemyDirectionClosed(enemy, d));
   if (open.length > 0) choices = open;
@@ -37,6 +42,55 @@ function randomEnemyDirection(enemy, avoid) {
     if (roll < 0) return d;
   }
   return choices[0];
+}
+
+// How likely this enemy is to head for a target when it picks a new
+// direction: 0 on level 1, rising with the level (DIFFICULTY in config.js)
+function seekChance(enemy) {
+  const d = DIFFICULTY;
+  return Math.min(d.seekMax, d.seekPerLevel * levelIndex) * (enemy.type.seek ?? 1);
+}
+
+// A direction that brings the enemy closer to its target: the base, or
+// the player (only while alive). The longer way to go is the likelier
+// one. Directions that run into water or the map's edge are left out;
+// null if none is left.
+function seekDirection(enemy) {
+  const target = !player.alive || Math.random() < DIFFICULTY.seekBaseShare ? BASE_TILE : player;
+  const dx = target.x - enemy.x;
+  const dy = target.y - enemy.y;
+  const options = [];
+  if (Math.abs(dx) >= 0.5) options.push({ dir: dx > 0 ? "right" : "left", far: Math.abs(dx) });
+  if (Math.abs(dy) >= 0.5) options.push({ dir: dy > 0 ? "down" : "up", far: Math.abs(dy) });
+  const open = options.filter((o) => !enemyDirectionClosed(enemy, o.dir));
+  if (open.length === 0) return null;
+  if (open.length === 1) return open[0].dir;
+  return Math.random() * (open[0].far + open[1].far) < open[0].far ? open[0].dir : open[1].dir;
+}
+
+// Is the player (alive) or the base straight ahead of this enemy, in
+// the lane it is facing down, at most DIFFICULTY.aimRange tiles away?
+function targetAhead(enemy) {
+  const step = DIRECTIONS[enemy.facing];
+  const targets = player.alive ? [player, BASE_TILE] : [BASE_TILE];
+  for (const target of targets) {
+    const dx = target.x - enemy.x;
+    const dy = target.y - enemy.y;
+    const along = dx * step.x + dy * step.y;                      // how far ahead
+    const across = Math.abs(dx * step.y) + Math.abs(dy * step.x); // how far to the side
+    if (along > 0 && along <= DIFFICULTY.aimRange && across < 0.5) return true;
+  }
+  return false;
+}
+
+// How many enemies may be on the field at once, and the seconds between
+// two spawns, on this level (DIFFICULTY in config.js)
+function maxEnemiesOnField() {
+  return difficultyAt(DIFFICULTY.maxEnemies, levelIndex + 1);
+}
+
+function enemySpawnDelay() {
+  return difficultyAt(DIFFICULTY.spawnDelay, levelIndex + 1);
 }
 
 // The spawn point the next enemy will use: the next one in line, or the
@@ -65,7 +119,7 @@ function nextSpawnWarning() {
 function updateSpawning(deltaSeconds) {
   const levelEnemies = currentLevel().enemies;
   if (enemiesSpawned >= levelEnemies.length) return;   // all used up
-  if (enemies.length >= MAX_ENEMIES_ON_SCREEN) return; // screen is full
+  if (enemies.length >= maxEnemiesOnField()) return;   // the field is full
 
   spawnTimer -= deltaSeconds;
   if (spawnTimer > 0) return;
@@ -83,6 +137,10 @@ function updateSpawning(deltaSeconds) {
     enemy.typeName = ENEMY_TYPES[levelEnemies[enemiesSpawned]] ? levelEnemies[enemiesSpawned] : "basic";
     enemy.look = type.look;
     enemy.health = type.health;
+    enemy.maxBullets = type.maxBullets || 1;
+    enemy.burstLeft = 0;         // shots still to come in this burst (gunner)
+    enemy.burstTimer = 0;
+    enemy.aiming = false;        // a target was straight ahead last frame
     enemy.flashTimer = 0;        // > 0 while flashing white after a hit
     // Every Nth enemy blinks and drops a power-up when destroyed
     enemy.carriesPowerUp = (enemiesSpawned + 1) % POWERUPS.flashingEnemyEvery === 0;
@@ -92,7 +150,7 @@ function updateSpawning(deltaSeconds) {
     enemies.push(enemy);
     enemiesSpawned += 1;
     nextSpawnPoint = (index + 1) % SPAWN_POINTS.length;
-    spawnTimer = ENEMY_SPAWN_DELAY;
+    spawnTimer = enemySpawnDelay();
   }
 }
 
@@ -122,11 +180,33 @@ function updateEnemies(deltaSeconds) {
       enemy.turnTimer = randomBetween(ENEMY_TURN_MIN, ENEMY_TURN_MAX);
     }
 
+    // Aimed shots (later levels): the moment the player or the base
+    // comes straight ahead, it shoots sooner than its random time. Only
+    // once per sighting, so it never turns into a machine gun.
+    const reaction = difficultyAt(DIFFICULTY.aimReaction, levelIndex + 1);
+    if (reaction !== null && enemy.type.aims !== false) {
+      const seen = targetAhead(enemy);
+      if (seen && !enemy.aiming) enemy.fireTimer = Math.min(enemy.fireTimer, reaction);
+      enemy.aiming = seen;
+    }
+
+    // The rest of a burst (gunner): the next shot follows quickly
+    if (enemy.burstLeft > 0) {
+      enemy.burstTimer -= deltaSeconds;
+      if (enemy.burstTimer <= 0) {
+        fireBullet(enemy, enemy.type.bulletSpeed);
+        enemy.burstLeft -= 1;
+        enemy.burstTimer = enemy.type.burstGap;
+      }
+    }
+
     // Time to shoot?
     enemy.fireTimer -= deltaSeconds;
     if (enemy.fireTimer <= 0) {
       fireBullet(enemy, enemy.type.bulletSpeed);
       enemy.fireTimer = enemyFireDelay(enemy.type);
+      enemy.burstLeft = (enemy.type.burst || 1) - 1;
+      enemy.burstTimer = enemy.type.burstGap || 0;
     }
   }
 }

@@ -70,12 +70,12 @@ The tile, tank and menu art, the tank blast (fire, smoke, pieces, scorch mark), 
 - **Why:** The reward moment is a static table. Counting up is the cheapest way to make earning gold feel good.
 - **Effort:** S. **Risk:** Low. Must be skippable, and the existing button delay stays.
 
-### 12. Smarter enemies (gameplay change)
+### 12. Smarter enemies (gameplay change) — DONE
 - **What:** Keep the random driving, but add a tunable chance for an enemy to turn toward the base or the player, and to fire when one of them is straight ahead. Chances rise by level and are set per enemy type.
 - **Why:** Enemy AI is purely random with a bias downward. Enemies never aim, so danger comes only from numbers and luck, and late levels feel like early ones played faster.
 - **Effort:** M. **Risk:** High for balance. Every level's difficulty shifts, so all 20 need replaying. Should be done together with proposal 13.
 
-### 13. A difficulty curve with more than speed (gameplay change)
+### 13. A difficulty curve with more than speed (gameplay change) — DONE
 - **What:** Let the number of enemies on the field (fixed at 3) and the spawn delay (fixed at 1.5 s) change by level, and add one tougher enemy for worlds 3–4 (for example one that fires twice). Review the economy against it.
 - **Why:** Scaling today is +1.5% speed per level capped at +25%, and a faster fire rate. From about level 17 nothing gets harder except the map. Endless mode flattens completely.
 - **Effort:** M. **Risk:** High for balance, as above. A new enemy is data plus colors, not new art.
@@ -122,7 +122,7 @@ The tile, tank and menu art, the tank blast (fire, smoke, pieces, scorch mark), 
 - **Why:** Three of the four worlds are completely still apart from water.
 - **Effort:** S–M. **Risk:** Low. Must stay faint so it never looks like bullets.
 
-### 22. Controls polish
+### 22. Controls polish — DONE (hold-to-fire setting, dead zones in config, fire tick; no joystick size setting)
 - **What:** A hold-to-fire option (auto-repeat while FIRE is held), a joystick dead-zone and size setting, and a light vibration tick on FIRE (with proposal 2).
 - **Why:** Tapping FIRE for a whole level is tiring on glass, and thumb sizes differ.
 - **Effort:** S. **Risk:** Medium. Hold-to-fire makes the game easier, so it should be a setting that is off by default, or tuned in with proposal 13.

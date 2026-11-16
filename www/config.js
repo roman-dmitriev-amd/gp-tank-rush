@@ -58,6 +58,58 @@ const ENEMY_SCALING = {
 };
 
 // =====================================================================
+//  Difficulty by level (state.js, enemyai.js, map.js). Besides the
+//  speed and fire rate above, later levels put more enemies on the
+//  field, send them faster, make them head for the base or the player
+//  more often, let them shoot sooner at what is right in front of them,
+//  and from world 3 on bring "gunner" tanks (enemies.js).
+//  Level 1 is exactly as easy as it always was.
+//
+//  A table is a list of [from level, value]: the value holds from that
+//  level on, until the next entry. Levels count from 1.
+// =====================================================================
+
+const DIFFICULTY = {
+  maxEnemies: [[1, 3], [7, 4], [15, 5]],  // enemy tanks on the field at once
+  spawnDelay: [[1, 1.5], [4, 1.35], [8, 1.2], [12, 1.05], [16, 0.9]], // seconds between two spawns
+
+  // Seeking: each time an enemy picks a new direction, this is the
+  // chance that it heads for a target instead of picking at random:
+  //   seekPerLevel * (level - 1), at most seekMax,
+  // times the enemy type's own "seek" (enemies.js).
+  seekPerLevel: 0.03,
+  seekMax: 0.45,
+  seekBaseShare: 0.5,   // the target is the base this often, otherwise the player
+
+  // Aimed shots: an enemy that finds the player or the base straight
+  // ahead (at most aimRange tiles away) shoots after this many seconds
+  // instead of waiting for its usual random time. null = it doesn't.
+  aimReaction: [[1, null], [3, 1.0], [8, 0.7], [14, 0.5]],
+  aimRange: 10,
+
+  // Gunners: this many of a level's "basic" tanks become "gunner" tanks
+  // (spread through the list, never one of the first three)
+  gunners: [[1, 0], [11, 2], [13, 3], [16, 4], [19, 5]],
+};
+
+// The value a DIFFICULTY table gives for level number "level" (from 1)
+function difficultyAt(table, level) {
+  let value = table[0][1];
+  for (const [from, v] of table) if (level >= from) value = v;
+  return value;
+}
+
+// =====================================================================
+//  Controls (input.js, tanks.js)
+// =====================================================================
+
+const CONTROLS = {
+  joystickDeadZone: 0.25, // drag control: moving the stick less than this share of its ring does nothing
+  dpadDeadZone: 0.3,      // cross control: a spot in the middle this big (in button widths) means "stop"
+  holdFireGap: 0.28,      // HOLD TO FIRE setting: at least this many seconds between two shots
+};
+
+// =====================================================================
 //  Playfield size in tiles. Every map in levels.js must have exactly
 //  GRID_ROWS strings of GRID_COLS letters each.
 // =====================================================================
@@ -86,8 +138,8 @@ const CORNER_ASSIST_RANGE = 1 / 3;
 
 // Enemies
 const ENEMY_SPEED = 2;            // normal speed in tiles/second (level 1)
-const MAX_ENEMIES_ON_SCREEN = 3;  // at most this many at once
-const ENEMY_SPAWN_DELAY = 1.5;    // seconds between two spawns
+// (How many are on the field at once and how fast they follow each
+// other depends on the level: DIFFICULTY below)
 const ENEMY_TURN_MIN = 0.5;       // AI picks a new direction every
 const ENEMY_TURN_MAX = 2.0;       //   0.5 to 2 seconds
 const ENEMY_HIT_FLASH_TIME = 0.12; // seconds an enemy flashes white when hit
@@ -155,6 +207,7 @@ const ECONOMY = {
     basic: 8,
     fast: 12,
     heavy: 25,
+    gunner: 18,
   },
 
   // Bonuses added at the end of each level
@@ -376,6 +429,7 @@ const FEEDBACK = {
 
   // Vibration in milliseconds (a list = buzz, pause, buzz); VIBRATION setting
   vibration: {
+    fire: 10,     // a light tick for each shot the player fires
     armor: 40,
     player: 90,
     base: [140, 60, 220],

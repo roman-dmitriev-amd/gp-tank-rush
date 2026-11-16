@@ -11,9 +11,10 @@
 // ---------------------------------------------------------------------
 let bullets = [];
 
+// Returns true if a shot was fired.
 function fireBullet(tank, speed) {
   const flying = bullets.filter((b) => b.owner === tank && !b.dead).length;
-  if (flying >= tank.maxBullets) return; // already enough in the air
+  if (flying >= tank.maxBullets) return false; // already enough in the air
   const step = DIRECTIONS[tank.facing];
   const bullet = {
     // Start at the tip of the cannon (center of tank + half a tile)
@@ -32,6 +33,7 @@ function fireBullet(tank, speed) {
   addMuzzleFlash(bullet.x, bullet.y); // explosions.js
   noteTankFired(tank);                // recoil (feedback.js)
   Sound.play(tank === player ? "playerShot" : "enemyShot");
+  return true; // a shot was fired
 }
 
 // How much damage this tank's bullets do to walls.

@@ -16,7 +16,7 @@
 //  setting changed, the app hidden), never every frame.
 //
 //  Saved data (SAVE_VERSION 1):
-//    { version, settings: { sound, music, soundEffects, engineSound, leftHanded, controlType, vibration },
+//    { version, settings: { sound, music, soundEffects, engineSound, leftHanded, controlType, vibration, holdFire },
 //      bestScore, highestLevel, tutorialDone, campaignComplete,
 //      checkpoint: null or { level, gold, score, upgrades, seed },
 //      run: null or { level, gold, lives, score, upgrades, continuesUsed } }
@@ -99,6 +99,7 @@ function buildSaveData() {
       leftHanded: settings.leftHanded,
       controlType: settings.controlType,
       vibration: settings.vibration,
+      holdFire: settings.holdFire,
     },
     bestScore: progress.bestScore,
     highestLevel: progress.highestLevel,
@@ -196,6 +197,7 @@ function applySaveData(data) {
   if (typeof s.leftHanded === "boolean") settings.leftHanded = s.leftHanded;
   if (s.controlType === "drag" || s.controlType === "cross") settings.controlType = s.controlType;
   if (typeof s.vibration === "boolean") settings.vibration = s.vibration; // missing in older saves: stays on
+  if (typeof s.holdFire === "boolean") settings.holdFire = s.holdFire;    // missing in older saves: stays off
 
   progress.bestScore = savedInt(data.bestScore, 0, Number.MAX_SAFE_INTEGER) || 0;
   progress.highestLevel = savedInt(data.highestLevel, 0, 1e6) || 0;

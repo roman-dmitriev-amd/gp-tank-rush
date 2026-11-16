@@ -122,6 +122,64 @@ Tested in the browser (the preview window was in the background, so frames were 
 - No console errors.
 - **Not checked: how the music sounds.** I can't listen to it. The notes are written by rule (chords, a melody on chord notes), so it should be in tune, but whether it is pleasant, and how loud it is against the effects, needs your ear.
 
+## Part 2: difficulty (plan items 12, 13, 22)
+
+All numbers are in `DIFFICULTY` and `CONTROLS` (`config.js`) and in `enemies.js`. Level 1 has none of the new rules.
+
+- **Seeking** (item 12): each time an enemy picks a new direction there is a chance it heads for the base or the player (half and half) instead of picking at random: 3% per level after the first, at most 45%. Fast tanks do it less (x0.6), heavy tanks more (x1.3). It never drives at water or the map's edge.
+- **Aimed shots** (item 12): from level 3 an enemy that finds the player or the base straight ahead (up to 10 tiles) shoots after a short reaction time instead of waiting for its random time. Once per sighting, so it is not a machine gun. Fast tanks don't aim.
+- **More enemies, sooner** (item 13): 3 on the field at once up to level 6, 4 from level 7, 5 from level 15; the time between spawns falls from 1.5 s to 0.9 s.
+- **Gunner** (item 13): a new violet enemy from level 11 (worlds 3 and 4, and endless): 2 hits, fires two shots in a row, 250 points, 18 gold. A rule turns some of a level's basic tanks into gunners (`DIFFICULTY.gunners`), so `levels.js` is unchanged. Data and colors only, drawn by the same tank painter.
+- **The old scaling stays**: enemy speed (+1.5% per level, at most +25%) and fire rate.
+- **Controls** (item 22): a new **HOLD TO FIRE** setting (off by default, saved): while FIRE or Space is held the tank keeps firing, at least 0.28 s apart. The joystick's and the cross's dead zones are numbers in `CONTROLS`. Each shot the player fires gives a 10 ms vibration tick (VIBRATION setting).
+- **DEBUG level select**: with `DEBUG = true` the title screen has "LEVEL -", "LEVEL +" and "DEBUG: START LEVEL n" (up to 20 levels into endless). With `DEBUG = false` the buttons don't exist.
+- **Economy**: prices are unchanged. Gunners pay 18 gold where a basic tank paid 8, so levels 11-20 give 20 to 50 gold more each.
+
+### What got harder, level by level
+
+"Seeking chance" is for a basic tank. Endless levels (21 and up) use the level 20 row with 5 gunners.
+
+| Level | Enemies at once | Seconds between spawns | Seeking chance | Aimed shot after | Gunners | New on this level |
+|---|---|---|---|---|---|---|
+| 1 | 3 | 1.5 | 0% | - | 0 | nothing: as before |
+| 2 | 3 | 1.5 | 3% | - | 0 | more seeking |
+| 3 | 3 | 1.5 | 6% | 1 s | 0 | more seeking, aimed shots start |
+| 4 | 3 | 1.35 | 9% | 1 s | 0 | faster spawns, more seeking |
+| 5 | 3 | 1.35 | 12% | 1 s | 0 | more seeking |
+| 6 | 3 | 1.35 | 15% | 1 s | 0 | more seeking |
+| 7 | 4 | 1.35 | 18% | 1 s | 0 | 4 at once, more seeking |
+| 8 | 4 | 1.2 | 21% | 0.7 s | 0 | faster spawns, more seeking, quicker aimed shots |
+| 9 | 4 | 1.2 | 24% | 0.7 s | 0 | more seeking |
+| 10 | 4 | 1.2 | 27% | 0.7 s | 0 | more seeking |
+| 11 | 4 | 1.2 | 30% | 0.7 s | 2 | more seeking, first gunners |
+| 12 | 4 | 1.05 | 33% | 0.7 s | 2 | faster spawns, more seeking |
+| 13 | 4 | 1.05 | 36% | 0.7 s | 3 | more seeking, 3 gunners |
+| 14 | 4 | 1.05 | 39% | 0.5 s | 3 | more seeking, quicker aimed shots |
+| 15 | 5 | 1.05 | 42% | 0.5 s | 3 | 5 at once, more seeking |
+| 16 | 5 | 0.9 | 45% | 0.5 s | 4 | faster spawns, more seeking, 4 gunners |
+| 17 | 5 | 0.9 | 45% | 0.5 s | 4 | - |
+| 18 | 5 | 0.9 | 45% | 0.5 s | 4 | - |
+| 19 | 5 | 0.9 | 45% | 0.5 s | 4 | - |
+| 20 | 5 | 0.9 | 45% | 0.5 s | 3 | 3 gunners |
+
+### How much harder it is
+
+I can't play-test, so I measured one thing: with the player standing still, how many seconds until the enemies destroy the base (10 runs each, old rules against new):
+
+| Level | Old | New |
+|---|---|---|
+| 1 | 61 s | 53 s (no rule changed; this is the spread between runs) |
+| 5 | 58 s | 55 s |
+| 8 | 49 s | 43 s |
+| 10 | 36 s | 25 s |
+| 13 | 33 s | 24 s |
+| 16 | 26 s | 16 s |
+| 20 | 85 s | 50 s |
+
+So the first world is about as before, the middle of the game presses the base about a quarter harder, and the last world about 40% harder. Whether that is fun with a real player is for you to judge: every number is one line in `DIFFICULTY`.
+
+Tested in the browser: 90 simulated seconds each on levels 1, 7, 12, 16, 20 and 23 (endless) with no errors, the right number of enemies at once, gunners appearing and firing bursts; the shop's "next level" panel with four tank types in portrait (360x800) and landscape (800x360); the settings page with 8 switches fits at 360x800 without scrolling; HOLD TO FIRE gives 5 shots in 3 seconds; the level select starts level 13 with its world banner.
+
 ## Decisions I made
 
 - **"Work directly in this folder (no worktree)"**: the session was already running in the worktree folder `.claude/worktrees/tank-rush-android-d11322` on branch `claude/tank-rush-android-d11322`, so I kept working there and pushed that branch. `main` in the project's root folder is untouched; merge the branch (or its pull request) to get the work there.
@@ -133,4 +191,9 @@ Tested in the browser (the preview window was in the background, so frames were 
 - **Music is rendered, not played live**: about 1.2 MB of memory per loop at 22 kHz mono, in exchange for almost no work while playing.
 - **Tank treads (item 15) not done**: the tread lines are part of each tank picture. Moving them means painting the track area again, which changes the sprite, and you asked for that not to happen. Dust or track marks would be a different effect, so I left the item open in QUALITY_PLAN.md.
 - **Summary button**: CONTINUE now also waits for the count to finish (about 2 s), unless a tap skips it. The 1 s button delay is unchanged.
+- **Gunners by rule, not in `levels.js`**: your hand-made enemy lists stay as they are; `withGunners()` in `map.js` swaps some basic tanks. Set `DIFFICULTY.gunners` to `[[1, 0]]` to have none.
+- **Gunner color**: violet, because grey, red and dark steel are taken, blue is the player's shield and green would vanish on grass.
+- **"Joystick dead-zone and size setting"**: I made the dead zones config numbers and added no size setting. The joystick's size comes from the layout (it is as big as its part allows), and a ninth switch would not fit the settings page on small phones without scrolling.
+- **HOLD TO FIRE is off by default**, because it makes the game easier.
+- **Aimed shots only once per sighting** and **fast tanks neither aim nor seek much**, to keep some of the old random feel and leave the player room to dodge.
 

@@ -88,6 +88,7 @@ window.addEventListener("keydown", (event) => {
   // Space = fire (only on the first press, not when the key repeats)
   if (event.code === "Space") {
     event.preventDefault();
+    fireKeyHeld = true;
     if (!event.repeat) playerFire();
     return;
   }
@@ -101,6 +102,7 @@ window.addEventListener("keydown", (event) => {
 });
 
 window.addEventListener("keyup", (event) => {
+  if (event.code === "Space") fireKeyHeld = false;
   const dir = KEY_TO_DIR[event.key];
   if (!dir) return;
   cancelledKeys.delete(dir);
@@ -195,7 +197,7 @@ function updateDpad(x, y) {
   const d = dpadLayout();
   const dx = x - d.x;
   const dy = y - d.y;
-  if (Math.hypot(dx, dy) < d.thick * 0.3) {
+  if (Math.hypot(dx, dy) < d.thick * CONTROLS.dpadDeadZone) {
     joystick.direction = null;
   } else if (Math.abs(dx) > Math.abs(dy)) {
     joystick.direction = dx > 0 ? "right" : "left";
@@ -221,7 +223,7 @@ function updateJoystick(x, y) {
   joystick.knobY = joystick.baseY + dy;
 
   // Small movements near the center do nothing (the "dead zone")
-  if (distance < radius * 0.25) {
+  if (distance < radius * CONTROLS.joystickDeadZone) {
     joystick.direction = null;
   } else if (Math.abs(dx) > Math.abs(dy)) {
     // Sideways is the bigger part of the drag
@@ -430,7 +432,16 @@ canvas.addEventListener("pointerleave", (event) => {
   if (event.pointerType === "mouse") forgetUiPointer();
 });
 
+// Is FIRE held down right now (the button or the Space key)? For the
+// HOLD TO FIRE setting (tanks.js).
+let fireKeyHeld = false;
+
+function fireHeld() {
+  return fireButton.pressed || fireKeyHeld;
+}
+
 function releaseAllInput() {
+  fireKeyHeld = false;
   heldKeys.length = 0;
   joystick.pointerId = null;
   joystick.direction = null;

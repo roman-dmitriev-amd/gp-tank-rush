@@ -24,6 +24,7 @@ const settings = {
   leftHanded: false,      // false: movement left, FIRE right. true: swapped
   controlType: "drag",    // "drag" (floating joystick) or "cross" (D-pad)
   vibration: true,        // the phone vibrates on big hits (feedback.js)
+  holdFire: false,        // keep firing while FIRE is held (tanks.js)
 };
 
 // ---------------------------------------------------------------------
@@ -260,6 +261,13 @@ function pauseMenuItems() {
         label: "MOVE CONTROL: " + (settings.controlType === "cross" ? "CROSS" : "DRAG"),
         action: () => {
           settings.controlType = settings.controlType === "cross" ? "drag" : "cross";
+          writeSave();
+        },
+      },
+      {
+        label: "HOLD TO FIRE: " + (settings.holdFire ? "ON" : "OFF"),
+        action: () => {
+          settings.holdFire = !settings.holdFire;
           writeSave();
         },
       },

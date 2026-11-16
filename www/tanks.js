@@ -194,6 +194,11 @@ function updatePlayer(deltaSeconds) {
 
   player.invincibleTimer = Math.max(0, player.invincibleTimer - deltaSeconds);
 
+  // HOLD TO FIRE setting: keep firing while FIRE (or Space) is held,
+  // with a short gap between shots (CONTROLS.holdFireGap)
+  player.fireGap = Math.max(0, (player.fireGap || 0) - deltaSeconds);
+  if (settings.holdFire && fireHeld() && player.fireGap <= 0) playerFire();
+
   const dir = currentDirection();
   if (dir) moveTank(player, dir, deltaSeconds);
   updateIceSlide(player, dir, deltaSeconds);
@@ -262,7 +267,9 @@ function spawnPlayer() {
 
 function playerFire() {
   if (isPaused() || !isPlaying() || !player.alive) return;
-  fireBullet(player, playerBulletSpeed()); // faster with the bullet upgrade
+  if (!fireBullet(player, playerBulletSpeed())) return; // faster with the bullet upgrade
+  player.fireGap = CONTROLS.holdFireGap;
+  vibrate("fire"); // a light tick (feedback.js)
   tutorialNoteFired();
 }
 

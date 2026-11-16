@@ -16,10 +16,20 @@ const titleScreen = { selected: 0 }; // button chosen with the keyboard
 // Where the screen goes (overlayFrame in layout.js): from the top of the
 // star plate to the bottom of the last button
 function titleScreenFrame() {
-  return overlayFrame(-8.6, 3.4);
+  // (With DEBUG on, two more rows of buttons: the level select, debug.js)
+  return overlayFrame(-8.6, DEBUG ? 7.8 : 3.4);
 }
 
 function titleScreenButtons() {
+  const buttons = titleScreenMainButtons();
+  if (!DEBUG) return buttons;
+  // DEBUG only: start any level (debug.js), under the last button
+  const { s } = titleScreenFrame();
+  const last = buttons[buttons.length - 1];
+  return buttons.concat(debugLevelButtons(buttons[0].x, last.y + last.height + s * 0.6, last.width, last.height, s * 0.6));
+}
+
+function titleScreenMainButtons() {
   const { s, cx, cy } = titleScreenFrame();
   const width = s * 9;
   const height = buttonHeight(s * 1.6); // at least 48 px (layout.js)
